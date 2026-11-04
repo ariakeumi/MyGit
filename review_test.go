@@ -6,11 +6,14 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
+
+	loc "mygit/locales"
 )
 
 func TestCommentOnACommit(t *testing.T) {
 	tt := newTester(t)
 	tt.commitFiles(t, "Grow main", map[string]string{"main.go": "package main\n\nfunc main() {}\n\nfunc run() {\n\tprintln(1)\n}\n"})
+	tt.click(t, loc.History())
 	tt.click(t, "Grow main")
 	a := tt.a
 	for i, f := range a.detail.files {

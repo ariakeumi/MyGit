@@ -61,6 +61,8 @@ func main() {
 	})
 	mygo.App.WhenReady(func() {
 		mygo.App.SetMenu(appMenu())
+		loadLocalRepositories()
+		loadGitHubAccount()
 		mygo.App.OnLocaleChanged(func(string) { mygo.App.SetMenu(appMenu()) }) // its labels, in the new language
 		if s, err := askpass.Listen(askUser); err == nil {
 			askServer = s
@@ -160,7 +162,7 @@ func open(repo *git.Repo) {
 		title = repo.Name() + " — " + hostName(repo.Host())
 	}
 	a := newApp(repo)
-	a.win = mygo.NewWindow(customTitleBar(mygo.WindowOptions{
+	a.win = mygo.NewWindow(repositoryWindowOptions(mygo.WindowOptions{
 		Title:     title,
 		Width:     1200,
 		Height:    800,

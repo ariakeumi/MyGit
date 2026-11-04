@@ -287,7 +287,6 @@ func (a *app) chooseShown() {
 	} else {
 		a.unstagedSel, a.stagedSel = indexOf(a.unstaged, ch.Path), -1
 	}
-	a.logSel, a.stashSel = -1, -1
 }
 
 // unsaved tells whether the file edited in the diff has changes not saved.

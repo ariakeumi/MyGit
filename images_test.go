@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	loc "mygit/locales"
 )
 
 // pngOf is a picture w by h of one color, as a PNG file's bytes.
@@ -29,6 +31,7 @@ func pngOf(t *testing.T, w, h int, c color.Color) string {
 func TestImagePreview(t *testing.T) {
 	tt := newTester(t)
 	tt.commitFiles(t, "Add the logo", map[string]string{"logo.png": pngOf(t, 40, 30, color.White)})
+	tt.click(t, loc.History())
 	tt.click(t, "Add the logo")
 	tt.settle()
 	im := tt.a.detail.images

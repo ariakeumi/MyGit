@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+
+	loc "mygit/locales"
 )
 
 func TestFuzzy(t *testing.T) {
@@ -29,6 +31,7 @@ func TestFuzzy(t *testing.T) {
 func TestPaletteFiles(t *testing.T) {
 	tt := newTester(t)
 	tt.commitFiles(t, "Three files", map[string]string{"web/app.ts": "x\n", "web/view.ts": "y\n", "main.go": "package main\n\nfunc main() { run() }\n"})
+	tt.click(t, loc.History())
 	tt.click(t, "Three files")
 	tt.Key(ui.Cmd, ui.KeyP)
 	tt.Frame()

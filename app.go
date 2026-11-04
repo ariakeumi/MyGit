@@ -50,6 +50,7 @@ type app struct {
 	refreshing, again bool // a refresh is running, and another is due after it
 
 	status                   git.Status
+	remoteConfig             []git.Remote
 	branches                 []string
 	remotes                  []string // the remotes' branches
 	tags                     []string // the newest first
@@ -59,7 +60,7 @@ type app struct {
 	stashes                  []git.Stash
 	stashList                ui.ListState
 	stashSel                 int
-	leftTab                  int // the left panel's: changes or the stash
+	leftTab                  int // Changes, History or Stash
 	staged                   []git.Change
 	unstaged                 []git.Change
 	genMarked                map[string]bool // the changes .gitattributes marks generated
@@ -70,9 +71,9 @@ type app struct {
 	foldedDirs               map[string]bool // the folders folded of the lists shown as trees, by list and path
 	filter                   changeFilter
 
-	message string
-	amend   bool
-	// The recent messages Up in the message box brings back, and how far
+	message, description string
+	amend                bool
+	// The recent messages Up in the summary field brings back, and how far
 	// back the one it shows is: 0 for one typed.
 	recalled  []string
 	recall    int
@@ -93,8 +94,9 @@ type app struct {
 	worktree     worktreeDialog
 	rebase       rebasePlan
 	reword       rewordPlan
-	push         pushPlan
+	push         *pushPlan
 	cred         credPrompt
+	githubLogin  githubAccountDialog
 	remotes2     remotesPlan // the remotes dialog
 	settings     settingsDialog
 	palette      palette   // ⌘P's files and ⌘K's commands
@@ -110,12 +112,12 @@ type app struct {
 	notice    string // news that isn't an error, as an update check's
 	trustDir  string // a repository another user owns, dropped, to trust
 	sidebarW  float32
-	logH      float32
 	filesW    float32
+	filesH    float32
 	stagedPct float32 // of the changes' room, the staged changes'
 }
 
-// detail is what the bottom of the window shows: a commit's files and the
+// detail is what the right pane shows: a commit's files and the
 // diff of one, or the diff of a change.
 type detail struct {
 	commit *git.Commit // nil for a change
@@ -149,7 +151,7 @@ type detail struct {
 
 func newApp(repo *git.Repo) *app {
 	return &app{repo: repo, scope: git.Scope{Ref: "HEAD"}, online: make(chan struct{}, 1), logSel: -1, stagedSel: -1, unstagedSel: -1, stashSel: -1,
-		sidebarW: prefs.SidebarW, logH: prefs.LogH, filesW: prefs.FilesW, stagedPct: prefs.StagedPct,
+		sidebarW: prefs.SidebarW, filesW: prefs.FilesW, filesH: 84, stagedPct: prefs.StagedPct,
 		unfolded: map[string]bool{}, viewed: map[string]bool{}, pullReviews: map[int]*pullReview{}}
 }
 
@@ -173,7 +175,8 @@ func (a *app) start() {
 			})
 		}
 		a.win.OnClosed(func() { // the next window opens as this one was laid out
-			prefs.SidebarW, prefs.LogH, prefs.FilesW, prefs.StagedPct = a.sidebarW, a.logH, a.filesW, a.stagedPct
+			a.githubLogin.close()
+			prefs.SidebarW, prefs.FilesW, prefs.StagedPct = a.sidebarW, a.filesW, a.stagedPct
 			prefs.save()
 		})
 		a.watch()
@@ -292,15 +295,16 @@ func listed(items []string, n int) string {
 }
 
 type snapshot struct {
-	status   git.Status
-	branches []string
-	remotes  []string
-	tags     []string
-	refs     string
-	op       git.Operation
-	stashes  []git.Stash
-	marked   map[string]bool // the changes .gitattributes marks generated
-	unpushed map[string]bool // the branch's commits its upstream hasn't, by hash
+	status       git.Status
+	remoteConfig []git.Remote
+	branches     []string
+	remotes      []string
+	tags         []string
+	refs         string
+	op           git.Operation
+	stashes      []git.Stash
+	marked       map[string]bool // the changes .gitattributes marks generated
+	unpushed     map[string]bool // the branch's commits its upstream hasn't, by hash
 }
 
 // refresh reads the status, and the history again when a ref moved. A
@@ -317,6 +321,7 @@ func (a *app) refresh() {
 		if err != nil {
 			return snapshot{}, err
 		}
+		remoteConfig, _ := a.repo.Remotes(ctx)
 		b, _ := a.repo.Branches(ctx)
 		rb, _ := a.repo.RemoteBranches(ctx)
 		tags, _ := a.repo.Tags(ctx)
@@ -329,7 +334,7 @@ func (a *app) refresh() {
 		if st.Upstream != "" && st.Ahead > 0 {
 			unpushed = a.repo.Unpushed(ctx)
 		}
-		return snapshot{st, b, rb, tags, a.repo.Refs(ctx), a.repo.Operation(ctx), stashes, a.repo.Generated(ctx, paths), unpushed}, nil
+		return snapshot{st, remoteConfig, b, rb, tags, a.repo.Refs(ctx), a.repo.Operation(ctx), stashes, a.repo.Generated(ctx, paths), unpushed}, nil
 	}, func(s snapshot, err error) {
 		a.refreshing = false
 		if a.again {
@@ -350,6 +355,7 @@ func (a *app) refresh() {
 			// Switching branches shows the new one's history.
 			a.scope.Ref, reload = "HEAD", true
 		}
+		a.remoteConfig = s.remoteConfig
 		a.setStatus(s.status)
 		a.branches, a.remotes, a.tags, a.op, a.stashes = s.branches, s.remotes, s.tags, s.op, s.stashes
 		a.stashSel = min(a.stashSel, len(a.stashes)-1)
@@ -391,7 +397,12 @@ func (a *app) setStatus(st git.Status) {
 		if c, ok := find(a.changes(a.detail.staged), ch.Path); ok {
 			a.showChange(c, a.detail.staged)
 		} else if !a.unsaved() { // edits not saved stay, to save or give up
-			a.detail = detail{}
+			// When staging moves the file to the other list, keep its diff open.
+			if i := indexOf(a.changes(!a.detail.staged), ch.Path); i >= 0 {
+				a.chooseChange(i, !a.detail.staged)
+			} else {
+				a.detail = detail{gen: a.detail.gen + 1}
+			}
 		}
 	}
 }
@@ -433,7 +444,7 @@ func find(changes []git.Change, path string) (git.Change, bool) {
 // loadLog reads the history again, keeping the commit chosen.
 func (a *app) loadLog() {
 	a.logGen++
-	gen := a.logGen
+	gen, scope := a.logGen, a.scope
 	chosen := ""
 	if a.logSel >= 0 && a.logSel < len(a.commits) {
 		chosen = a.commits[a.logSel].Hash
@@ -445,7 +456,7 @@ func (a *app) loadLog() {
 	a.matches, a.searched = a.matches[:0], 0
 	go func() {
 		var layout graph.Layout
-		err := a.repo.Log(context.Background(), a.scope, logBatch, func(batch []git.Commit) {
+		err := a.repo.Log(context.Background(), scope, logBatch, func(batch []git.Commit) {
 			rows := make([]graph.Row, len(batch))
 			for i := range batch {
 				rows[i] = layout.Add(batch[i].Hash, batch[i].Parents)
@@ -481,6 +492,7 @@ func (a *app) showCommit(i int) {
 		return
 	}
 	c := a.commits[i]
+	a.leftTab = historyTab
 	a.showPatch(c, func(ctx context.Context, ws git.Whitespace) (string, error) { return a.repo.Show(ctx, c.Hash, ws) })
 }
 
@@ -490,6 +502,7 @@ func (a *app) showCompare(label, from, to string) {
 	if a.leaving(func() { a.showCompare(label, from, to) }) {
 		return
 	}
+	a.leftTab = historyTab
 	c := git.Commit{Hash: from + ".." + to, Subject: label}
 	a.showPatch(c, func(ctx context.Context, ws git.Whitespace) (string, error) {
 		if to == "" {
@@ -507,6 +520,7 @@ func (a *app) showStash(s git.Stash) {
 	if a.leaving(func() { a.showStash(s) }) {
 		return
 	}
+	a.leftTab = stashTab
 	c := git.Commit{Hash: s.Hash, Time: s.Time, Subject: s.Subject, Refs: []string{s.Ref}}
 	a.showPatch(c, func(ctx context.Context, ws git.Whitespace) (string, error) { return a.repo.StashShow(ctx, s.Ref, ws) })
 }
@@ -954,7 +968,7 @@ func (a *app) unstagePaths(paths ...string) {
 }
 
 func (a *app) canCommit() bool {
-	return a.busy == "" && a.message != "" && (len(a.staged) > 0 || a.amend)
+	return a.busy == "" && strings.TrimSpace(a.message) != "" && (len(a.staged) > 0 || a.amend)
 }
 
 func (a *app) commit() {
@@ -964,9 +978,9 @@ func (a *app) commit() {
 	if !a.canCommit() {
 		return
 	}
-	msg, amend := a.message, a.amend
+	msg, amend := a.commitMessage(), a.amend
 	a.run(loc.OpCommit(), func(ctx context.Context) error { return a.repo.Commit(ctx, msg, amend) }, func() {
-		a.message, a.amend, a.recall = "", false, 0
+		a.message, a.description, a.amend, a.recall = "", "", false, 0
 	})
 }
 
@@ -983,18 +997,19 @@ func (a *app) recallKey(k ui.TextKey) bool {
 		step = -1
 	}
 	if a.recall == 0 {
-		if text != "" || step < 0 {
+		if text != "" || a.description != "" || step < 0 {
 			return false
 		}
 		a.recalled = a.repo.RecentMessages(context.Background(), 50)
-	} else if text != a.recalled[a.recall-1] {
+	} else if a.commitMessage() != strings.TrimSpace(a.recalled[a.recall-1]) || text != a.message {
 		a.recall = 0
 		return false
 	}
 	if i := a.recall + step; i <= len(a.recalled) {
-		a.recall, a.message = i, ""
+		a.recall = i
+		a.setCommitMessage("")
 		if i > 0 {
-			a.message = a.recalled[i-1]
+			a.setCommitMessage(a.recalled[i-1])
 		}
 		k.SetText(a.message)
 		a.recallEnd = true
@@ -1005,22 +1020,26 @@ func (a *app) recallKey(k ui.TextKey) bool {
 // toggleAmend starts amending from HEAD's message, and stops with an
 // empty one.
 func (a *app) toggleAmend() {
+	last := a.repo.LastMessage(context.Background())
 	if a.amend {
-		a.message = a.repo.LastMessage(context.Background())
-	} else if a.message == a.repo.LastMessage(context.Background()) {
-		a.message = ""
+		a.setCommitMessage(last)
+	} else if a.commitMessage() == strings.TrimSpace(last) {
+		a.setCommitMessage("")
 	}
+	a.recall = 0
 }
 
-// remoteNames are the remotes the remotes' branches name.
-func (a *app) remoteNames() []string {
-	var names []string
-	for _, b := range a.remotes {
-		if name, _, ok := strings.Cut(b, "/"); ok && !slices.Contains(names, name) {
-			names = append(names, name)
-		}
+func (a *app) commitMessage() string {
+	summary := strings.TrimSpace(a.message)
+	if description := strings.TrimSpace(a.description); description != "" {
+		return summary + "\n\n" + description
 	}
-	return names
+	return summary
+}
+
+func (a *app) setCommitMessage(message string) {
+	summary, description, _ := strings.Cut(strings.TrimSpace(message), "\n")
+	a.message, a.description = summary, strings.TrimSpace(description)
 }
 
 // reloadDiff shows the diff of what's chosen again, as the diff settings

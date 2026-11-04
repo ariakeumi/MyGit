@@ -31,6 +31,38 @@ func TestParseRemote(t *testing.T) {
 	}
 }
 
+func TestRepositories(t *testing.T) {
+	last := Repository{FullName: "org/private", CloneURL: "https://github.com/org/private.git"}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		if r.Method != http.MethodGet || r.URL.Path != "/user/repos" || query.Get("per_page") != "100" ||
+			query.Get("sort") != "pushed" || r.Header.Get("Authorization") != "Bearer tok" {
+			t.Errorf("unexpected repository request: %s %s", r.Method, r.URL)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		switch query.Get("page") {
+		case "1":
+			json.NewEncoder(w).Encode(make([]Repository, 100))
+		case "2":
+			json.NewEncoder(w).Encode([]Repository{last})
+		default:
+			t.Errorf("unexpected page: %s", r.URL)
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	defer srv.Close()
+	c := &Client{Token: "tok", BaseURL: srv.URL}
+	repos, err := c.Repositories(context.Background())
+	if err != nil || len(repos) != 101 || repos[100] != last {
+		t.Fatalf("got %d repositories, want 101 ending in %v, error %v", len(repos), last, err)
+	}
+	c.Token = ""
+	if _, err := c.Repositories(context.Background()); !errors.Is(err, ErrNoToken) {
+		t.Fatalf("unsigned request: %v", err)
+	}
+}
+
 // fake is GitHub's API for one repository's pull request 7, keeping what
 // is posted.
 type fake struct {

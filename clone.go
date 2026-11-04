@@ -2,14 +2,17 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"mygit/internal/git"
+	"mygit/internal/github"
 	loc "mygit/locales"
 )
 
@@ -23,7 +26,13 @@ type clonePlan struct {
 	running        bool
 	progress, fail string
 	cancel         context.CancelFunc
+	repos          []github.Repository
+	repoQuery      string
+	repoErr        error
+	cancelRepos    context.CancelFunc
 }
+
+var readCloneRepositories = github.New(context.Background(), "", "").Repositories
 
 // defaultParent is where clones go: ~/Projects when there is one.
 func defaultParent() string {
@@ -36,25 +45,108 @@ func defaultParent() string {
 	return home
 }
 
+func (w *welcome) openClone() {
+	if !w.clone.open {
+		w.clone = clonePlan{open: true, parent: defaultParent()}
+		w.loadCloneRepositories()
+	}
+}
+
+func (w *welcome) loadCloneRepositories() {
+	p := &w.clone
+	if p.cancelRepos != nil {
+		p.cancelRepos()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	p.cancelRepos, p.repos, p.repoErr = cancel, nil, nil
+	read := readCloneRepositories
+	go func() {
+		request, finish := context.WithTimeout(ctx, 30*time.Second)
+		defer finish()
+		repos, err := read(request)
+		w.update(func() {
+			if ctx.Err() != nil {
+				return
+			}
+			cancel()
+			p.cancelRepos, p.repos, p.repoErr = nil, repos, err
+		})
+	}()
+}
+
+func (w *welcome) cloneRepositories(c *ui.Context) {
+	p := &w.clone
+	t := c.Theme()
+	if errors.Is(p.repoErr, github.ErrNoToken) {
+		return
+	}
+	ui.Text(c.Key("github-repos-title"), loc.CloneGithubRepos()).Bold()
+	switch {
+	case p.cancelRepos != nil:
+		ui.Row(c.Key("github-repos-loading")).Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Spinner(c).Size(14, 14)
+			ui.Text(c, loc.CloneGithubLoading()).TextColor(t.TextMuted)
+		})
+	case p.repoErr != nil:
+		ui.Text(c.Key("github-repos-error"), loc.CloneGithubFailed()).TextColor(t.Danger).Wrap().Tooltip(p.repoErr.Error())
+		ui.Button(c.Key("github-repos-retry"), loc.CloneGithubRetry()).OnClick(w.loadCloneRepositories)
+	case len(p.repos) == 0:
+		ui.Text(c.Key("github-repos-empty"), loc.CloneGithubEmpty()).TextColor(t.TextMuted).Wrap()
+	default:
+		ui.TextInput(c.Key("github-repos-filter"), &p.repoQuery).Placeholder(loc.CloneGithubFilter()).Label(loc.CloneGithubFilter())
+		repos := p.repos
+		if query := strings.ToLower(strings.TrimSpace(p.repoQuery)); query != "" {
+			repos = nil
+			for _, repo := range p.repos {
+				if strings.Contains(strings.ToLower(repo.FullName), query) {
+					repos = append(repos, repo)
+				}
+			}
+		}
+		if len(repos) == 0 {
+			ui.Text(c.Key("github-repos-no-match"), loc.CloneGithubNoMatch()).TextColor(t.TextMuted)
+			return
+		}
+		ui.List(c.Key("github-repos-list"), nil, len(repos)).MaxHeight(150).
+			ItemKey(func(i int) any { return repos[i].FullName }).
+			Rows(func(row ui.ListRow) {
+				repo := repos[row.Index]
+				button := ui.Button(row.Context, repo.FullName).Tooltip(repo.FullName)
+				if p.url == repo.CloneURL {
+					button.Background(t.Selection)
+				}
+				button.OnClick(func() {
+					p.url = repo.CloneURL
+					if !p.named {
+						p.name = git.RepoName(repo.CloneURL)
+					}
+				})
+			})
+	}
+}
+
 func (w *welcome) cloneView(c *ui.Context) {
 	p := &w.clone
 	if !p.open {
 		return
 	}
 	t := c.Theme()
-	if ui.Modal(c, &p.open, func() {
+	if ui.Modal(c.Key("clone"), &p.open, func() {
 		ui.Column(c).Gap(10).Width(dialogWidth(c, 460)).Children(func() {
 			ui.Text(c, loc.CloneTitle()).Bold().FontSize(15)
-			if ui.TextInput(c, &p.url).Placeholder(loc.CloneURLPlaceholder()).Label(loc.CloneURL()).AutoFocus().Changed() && !p.named {
+			if ui.TextInput(c.Key("url"), &p.url).Placeholder(loc.CloneURLPlaceholder()).Label(loc.CloneURL()).AutoFocus().Disabled(p.running).Changed() && !p.named {
 				p.name = git.RepoName(strings.TrimSpace(p.url))
 			}
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+			if !p.running {
+				w.cloneRepositories(c)
+			}
+			ui.Row(c.Key("parent")).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, homeRelative(p.parent)).TextColor(t.TextMuted).SingleLine().Grow(1).Basis(0).Tooltip(p.parent)
 				if ui.Button(c, loc.Change()).Disabled(p.running).Clicked() {
 					go w.pickParent()
 				}
 			})
-			if ui.TextInput(c, &p.name).Label(loc.FolderName()).Placeholder(loc.FolderName()).Changed() {
+			if ui.TextInput(c.Key("name"), &p.name).Label(loc.FolderName()).Placeholder(loc.FolderName()).Disabled(p.running).Changed() {
 				p.named = true
 			}
 			switch {
@@ -66,7 +158,7 @@ func (w *welcome) cloneView(c *ui.Context) {
 			case p.fail != "":
 				ui.Text(c, p.fail).TextColor(t.Danger).Wrap()
 			}
-			ui.Row(c).Gap(8).Justify(ui.End).Children(func() {
+			ui.Row(c.Key("actions")).Gap(8).Justify(ui.End).Children(func() {
 				if ui.Button(c, loc.Cancel()).Clicked() {
 					w.stopClone()
 				}
@@ -84,6 +176,9 @@ func (w *welcome) cloneView(c *ui.Context) {
 func (w *welcome) stopClone() {
 	if w.clone.cancel != nil {
 		w.clone.cancel()
+	}
+	if w.clone.cancelRepos != nil {
+		w.clone.cancelRepos()
 	}
 	w.clone = clonePlan{}
 }
@@ -104,7 +199,11 @@ func (w *welcome) startClone() {
 	p.running, p.fail, p.progress, p.cancel = true, "", loc.Connecting(), cancel
 	go func() {
 		err := git.Clone(ctx, parent, url, name, func(line string) {
-			w.win.Update(func() { w.clone.progress = line })
+			w.win.Update(func() {
+				if ctx.Err() == nil {
+					w.clone.progress = line
+				}
+			})
 		})
 		w.win.Update(func() {
 			if ctx.Err() != nil {
@@ -115,7 +214,7 @@ func (w *welcome) startClone() {
 				w.clone.fail = err.Error()
 				return
 			}
-			w.clone.open = false
+			w.stopClone()
 			w.open(filepath.Join(parent, name))
 		})
 	}()

@@ -14,6 +14,7 @@ import (
 
 	"mygit/internal/git"
 	"mygit/internal/helper"
+	loc "mygit/locales"
 )
 
 // gitInit makes a repository in dir with a commit, and leaves a change.
@@ -134,18 +135,18 @@ func TestWorkspace(t *testing.T) {
 	if len(ws.apps) != 3 {
 		t.Fatalf("%d repositories", len(ws.apps))
 	}
-	for _, s := range []string{"crafts /", "artcraft", "filmcraft", "printcraft", "brush.ts", "page.ts"} {
+	for _, s := range []string{"crafts", "artcraft", "filmcraft", "printcraft", "brush.ts", "page.ts"} {
 		if !tt.HasText(s) {
 			t.Fatalf("no %q in %q", s, tt.Texts())
 		}
 	}
-	// Working in a repository shows its history.
+	// Working in a repository activates it and shows the selected change.
 	if err := tt.Click("page.ts"); err != nil {
 		t.Fatal(err)
 	}
 	settle()
 	active := ws.apps[ws.active]
-	if active.repo.Name() != "printcraft" || !tt.HasText("Print the first page") || tt.HasText("Draw the first stroke") {
+	if active.repo.Name() != "printcraft" {
 		t.Fatalf("active %s, texts %q", active.repo.Name(), tt.Texts())
 	}
 	if active.detail.change == nil || active.detail.change.Path != "page.ts" {
@@ -157,7 +158,7 @@ func TestWorkspace(t *testing.T) {
 	active.message = "Add the page"
 	active.commit()
 	settle()
-	if !tt.HasText("Add the page") || len(active.staged) != 0 {
+	if len(active.staged) != 0 {
 		t.Errorf("not committed: %q", tt.Texts())
 	}
 	// Folded away, its changes don't show; the count does.
@@ -169,6 +170,16 @@ func TestWorkspace(t *testing.T) {
 	}
 	if out, _ := exec.Command("git", "-C", active.repo.Dir, "log", "-1", "--format=%s").Output(); strings.TrimSpace(string(out)) != "Add the page" {
 		t.Errorf("last commit %q", out)
+	}
+	if err := tt.Click(loc.CurrentRepository()); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("artcraft"); err != nil {
+		t.Fatal(err)
+	}
+	settle()
+	if ws.apps[ws.active] != art {
+		t.Fatalf("repository switcher left %s active", ws.apps[ws.active].repo.Name())
 	}
 }
 

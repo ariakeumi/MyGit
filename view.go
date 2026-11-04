@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"path"
 	"slices"
@@ -22,50 +21,17 @@ const rowHeight = 26
 
 func (a *app) view(c *ui.Context) {
 	t := c.Theme()
-	root := ui.Column(c).Fill().FontSize(12)
+	if c.Vibrancy() {
+		c.Root().Background(ui.Transparent)
+	}
+	root := ui.Row(c).Fill().FontSize(12).AlignItems(ui.Stretch)
 	root.Children(func() {
-		a.toolbar(c)
-		a.updateBar(c)
-		if a.notice != "" {
-			ui.Row(c).Padding(6, 12).Gap(8).Background(t.Accent.Alpha(0.1)).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, a.notice).Wrap().Grow(1)
-				if ui.Button(c, loc.Close()).Clicked() {
-					a.notice = ""
-				}
-			})
+		if !prefs.RepoSidebarHidden {
+			a.repositorySidebar(c)
 		}
-		if a.errMsg != "" {
-			ui.Row(c).Padding(6, 12).Gap(8).Background(t.Danger.Alpha(0.12)).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, a.errMsg).TextColor(t.Danger).Wrap().Grow(1)
-				if a.trustDir != "" && ui.Button(c, loc.TrustOpen()).Tooltip(loc.TrustTooltip()).Clicked() {
-					if err := git.Trust(a.trustDir); err != nil {
-						a.errMsg = err.Error()
-					} else {
-						a.openDropped([]string{a.trustDir})
-					}
-				}
-				if ui.Button(c, loc.Close()).Clicked() {
-					a.errMsg, a.trustDir = "", ""
-				}
-			})
-		}
-		a.operationBar(c)
-		// The sidebar is left out rather than narrowed: a split keeps a
-		// strip of its own, with a divider to drag, however small its size.
-		history := func() {
-			ui.SplitVertical(c, &a.logH, func() { a.logView(c) }, func() { a.detailView(c) }).Fill()
-		}
-		if prefs.SidebarHidden {
-			ui.Column(c).Grow(1).Basis(0).Children(history)
-		} else {
-			ui.Split(c, &a.sidebarW, func() {
-				if a.ws != nil {
-					a.ws.sidebar(c)
-				} else {
-					a.leftPanel(c)
-				}
-			}, history).Grow(1)
-		}
+		ui.Column(c.Key("repository-content")).Grow(1).Basis(0).MinWidth(0).Background(t.Background).Children(func() {
+			a.repositoryContent(c)
+		})
 		if root.FileDragOver() {
 			dropHint(c)
 		}
@@ -82,12 +48,18 @@ func (a *app) view(c *ui.Context) {
 	a.settingsView(c)
 	a.confirmView(c)
 	a.cred.view(c)
+	a.githubLogin.view(c)
 	a.paletteView(c)
 	a.composerView(c)
 	a.pullsView(c)
 	a.submitView(c)
 	c.OnShortcut(ui.Cmd, ui.KeyR, a.refresh)
 	c.OnShortcut(ui.Cmd, ui.KeyB, a.toggleSidebar)
+	c.OnShortcut(ui.Cmd|ui.Shift, ui.KeyB, toggleRepositorySidebar)
+	c.OnShortcut(ui.Cmd, ui.Key1, func() { a.selectTab(changesTab) })
+	c.OnShortcut(ui.Cmd, ui.Key2, func() { a.selectTab(historyTab) })
+	c.OnShortcut(ui.Cmd, ui.Key3, func() { a.selectTab(stashTab) })
+	c.OnShortcut(ui.Cmd, ui.KeyF, a.focusHistory)
 	c.OnShortcut(ui.Cmd, ui.KeyP, a.openFiles)
 	c.OnShortcut(ui.Cmd, ui.KeyK, a.openCommands)
 	c.OnShortcut(0, ui.KeyF7, func() { a.stepChange(false) })
@@ -95,6 +67,41 @@ func (a *app) view(c *ui.Context) {
 	if !macOS { // the menu bar's on macOS, which other systems' windows don't have
 		c.OnShortcut(ui.Cmd|ui.Shift, ui.KeyO, openSSH)
 		c.OnShortcut(ui.Cmd, ui.KeyComma, func() { a.settings.open = true })
+	}
+}
+
+func (a *app) repositoryContent(c *ui.Context) {
+	t := c.Theme()
+	a.toolbar(c)
+	a.updateBar(c)
+	if a.notice != "" {
+		ui.Row(c).Padding(6, 12).Gap(8).Background(t.Accent.Alpha(0.1)).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, a.notice).Wrap().Grow(1)
+			if ui.Button(c, loc.Close()).Clicked() {
+				a.notice = ""
+			}
+		})
+	}
+	if a.errMsg != "" {
+		ui.Row(c).Padding(6, 12).Gap(8).Background(t.Danger.Alpha(0.12)).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, a.errMsg).TextColor(t.Danger).Wrap().Grow(1)
+			if a.trustDir != "" && ui.Button(c, loc.TrustOpen()).Tooltip(loc.TrustTooltip()).Clicked() {
+				if err := git.Trust(a.trustDir); err != nil {
+					a.errMsg = err.Error()
+				} else {
+					a.openDropped([]string{a.trustDir})
+				}
+			}
+			if ui.Button(c, loc.Close()).Clicked() {
+				a.errMsg, a.trustDir = "", ""
+			}
+		})
+	}
+	a.operationBar(c)
+	if prefs.SidebarHidden {
+		ui.Column(c).Grow(1).Basis(0).Children(func() { a.detailView(c) })
+	} else {
+		ui.Split(c.Key("repository-panes"), &a.sidebarW, func() { a.leftPanel(c) }, func() { a.detailView(c) }).Grow(1)
 	}
 }
 
@@ -122,75 +129,6 @@ func (a *app) remoteBadge(c *ui.Context) {
 	})
 }
 
-func (a *app) toolbar(c *ui.Context) {
-	t := c.Theme()
-	st := a.status
-	titleBar(c).Background(t.Surface).BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
-		ui.Image(c, icon).Size(22, 22)
-		// Where the sidebar meets the window, so that its way back stays
-		// in view while it is away.
-		if iconButton(c, "panel-left", a.sidebarLabel(), a.sidebarLabel()+" · "+shortcut("B")) {
-			a.toggleSidebar()
-		}
-		if a.ws != nil {
-			ui.Text(c, a.ws.name()+" /").FontSize(13).TextColor(t.TextMuted)
-		}
-		ui.Text(c, a.repo.Name()).FontSize(13).Bold().Tooltip(a.repo.Location())
-		if !a.local() {
-			a.remoteBadge(c)
-		}
-		branch := st.Branch
-		if branch == "" {
-			branch = loc.Detached()
-		}
-		a.branchesButton(c, "⎇ "+branch+" ▾")
-		if st.Upstream != "" {
-			ui.Text(c, fmt.Sprintf("%s  ↑%d ↓%d", st.Upstream, st.Ahead, st.Behind)).TextColor(t.TextMuted)
-		}
-		ui.Box(c).Grow(1)
-		if a.busy != "" {
-			ui.Spinner(c).Size(14, 14)
-			ui.Text(c, a.busy+"…").TextColor(t.TextMuted)
-		}
-		idle := a.busy == ""
-		ui.Button(c, loc.Fetch()+" ▾").Label(loc.Fetch()).Disabled(!idle).Menu(func(m *ui.Menu) {
-			if m.Item(loc.FetchAll()).Chosen() {
-				a.run(loc.OpFetch(), a.repo.Fetch, nil)
-			}
-			if names := a.remoteNames(); len(names) > 1 {
-				m.Separator()
-				for _, name := range names {
-					if m.Item(loc.FetchRemote(name)).Chosen() {
-						a.run(loc.OpFetchRemote(name), func(ctx context.Context) error { return a.repo.FetchRemote(ctx, name) }, nil)
-					}
-				}
-			}
-		})
-		ui.Button(c, loc.Pull()+" ▾").Label(loc.Pull()).Disabled(!idle || st.Upstream == "").Menu(func(m *ui.Menu) {
-			pull := func(mode git.PullMode) {
-				a.runPull(loc.OpPull(), func(ctx context.Context) error { return a.repo.Pull(ctx, mode) })
-			}
-			if m.Item(loc.PullFF()).Chosen() {
-				pull(git.PullFastForward)
-			}
-			if m.Item(loc.PullRebase()).Chosen() {
-				pull(git.PullRebase)
-			}
-			if m.Item(loc.PullMerge()).Chosen() {
-				pull(git.PullMerge)
-			}
-		})
-		if ui.Button(c, loc.PushMenu()).Tooltip(loc.PushTooltip()).Disabled(!idle || st.Branch == "").Clicked() {
-			a.openPush()
-		}
-		a.commentsButton(c)
-		if ui.Button(c, loc.Refresh()).Tooltip(shortcut("R")).Clicked() {
-			a.refresh()
-		}
-		ui.Button(c, "⋯").Label(loc.Repository()).Menu(a.repoMenu)
-	})
-}
-
 // toggleSidebar hides the sidebar, or shows it again, both the repository's
 // and the workspace's, keeping the choice for the next launch.
 func (a *app) toggleSidebar() {
@@ -207,52 +145,60 @@ func (a *app) sidebarLabel() string {
 	return loc.HideSidebar()
 }
 
-// changesPanel is the working tree's changes, staged and not, and the
-// commit message under them.
+// changesPanel keeps the commit controls visible below the file lists.
 func (a *app) changesPanel(c *ui.Context) {
-	t := c.Theme()
 	ui.Column(c).Grow(1).Basis(0).Children(func() {
-		// The message on top, as VS Code has it, where it shows however
-		// many files changed.
-		ui.Column(c).Gap(8).Padding(10).BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
-			a.messageField(c).Lines(2, 8)
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				if ui.Checkbox(c, &a.amend, loc.Amend()).Changed() {
-					a.toggleAmend()
-				}
-				ui.Box(c).Grow(1)
-				label := loc.Commit()
-				if n := len(a.staged); n > 0 {
-					label = loc.CommitFiles(n)
-				}
-				if ui.PrimaryButton(c, label).Disabled(!a.canCommit()).Tooltip(shortcut("↩")).Clicked() {
-					a.commit()
-				}
-			})
-		})
-		if len(a.staged)+len(a.unstaged) > 0 || a.filter.query != "" {
+		if len(a.status.Changes) > 0 || a.filter.query != "" {
 			a.filterField(c)
 		}
-		// Dragged as the room the staged changes need, few or thousands.
-		ui.SplitVerticalPercent(c.Key("changes"), &a.stagedPct, func() {
-			ui.Column(c).Fill().Children(func() { a.changeSection(c, loc.Staged(), true, true) })
-		}, func() {
-			ui.Column(c).Fill().Children(func() { a.changeSection(c, loc.Changes(), false, true) })
-		}).Grow(1).Basis(0)
+		staged := func() { a.changeSection(c, loc.Staged(), true, true) }
+		unstaged := func() { a.changeSection(c, loc.Changes(), false, true) }
+		switch {
+		case len(a.staged) == 0:
+			ui.Column(c.Key("working-tree")).Grow(1).Basis(0).Children(unstaged)
+		case len(a.unstaged) == 0:
+			ui.Column(c.Key("index")).Grow(1).Basis(0).Children(staged)
+		default:
+			ui.SplitVerticalPercent(c.Key("changes"), &a.stagedPct, func() {
+				ui.Column(c).Fill().Children(staged)
+			}, func() {
+				ui.Column(c).Fill().Children(unstaged)
+			}).Grow(1).Basis(0)
+		}
+		a.commitForm(c)
 	})
 	c.OnShortcut(ui.Cmd, ui.KeyEnter, a.commit)
 }
 
-// messageField is the commit message's box, where Up brings back the
-// recent messages.
-func (a *app) messageField(c *ui.Context) ui.Element {
-	in := ui.TextArea(c, &a.message).Placeholder(loc.MessagePlaceholder(shortcut("↩"))).Label(loc.Message()).OnTextKey(a.recallKey)
+func (a *app) commitForm(c *ui.Context) {
+	t := c.Theme()
+	ui.Column(c).Gap(8).Padding(10).BorderWidth(1, 0, 0, 0).BorderColor(t.Border).Children(func() {
+		a.messageFields(c, 3)
+		if ui.Checkbox(c, &a.amend, loc.Amend()).Changed() {
+			a.toggleAmend()
+		}
+		label := loc.Commit()
+		if a.status.Branch != "" {
+			label = loc.CommitToBranch(a.status.Branch)
+		}
+		tip := shortcut("↩")
+		if n := len(a.staged); n > 0 {
+			tip = loc.CommitFiles(n) + " · " + tip
+		}
+		ui.PrimaryButton(c, label).FillWidth().Disabled(!a.canCommit()).Tooltip(tip).OnClick(a.commit)
+	})
+}
+
+func (a *app) messageFields(c *ui.Context, lines int) {
+	in := ui.TextInput(c.Key("summary"), &a.message).Placeholder(loc.CommitSummary()).Label(loc.CommitSummary()).
+		FillWidth().OnTextKey(a.recallKey)
 	if a.recallEnd {
 		n := utf8.RuneCountInString(a.message)
 		in.SetTextSelection(n, n)
 		a.recallEnd = false
 	}
-	return in
+	ui.TextArea(c.Key("description"), &a.description).Placeholder(loc.CommitDescription()).Label(loc.CommitDescription()).
+		FillWidth().Lines(lines, lines)
 }
 
 // changeSection lists the staged changes or the others, those the filter
@@ -549,9 +495,8 @@ func changeName(code byte) string {
 // detailView is the diff of what was chosen last: a commit, with its files
 // beside, or a change.
 func (a *app) detailView(c *ui.Context) {
-	t := c.Theme()
 	d := &a.detail
-	ui.Column(c).Fill().BorderWidth(1, 0, 0, 0).BorderColor(t.Border).Children(func() {
+	ui.Column(c).Fill().Children(func() {
 		switch {
 		case d.commit != nil:
 			if d.pr != nil {
@@ -559,7 +504,12 @@ func (a *app) detailView(c *ui.Context) {
 			} else {
 				a.commitHeader(c, d.commit)
 			}
-			ui.Split(c.Key("files"), &a.filesW, func() { a.filesPane(c) }, func() { a.diffView(c) }).Grow(1)
+			files, diff := func() { a.filesPane(c) }, func() { a.diffView(c) }
+			if a.detailWidth(c) < 600 {
+				ui.SplitVertical(c.Key("files-vertical"), &a.filesH, files, diff).Grow(1)
+			} else {
+				ui.Split(c.Key("files"), &a.filesW, files, diff).Grow(1)
+			}
 		case d.blame != nil:
 			a.blameView(c, d.blame)
 		case d.merge != nil:
@@ -567,14 +517,14 @@ func (a *app) detailView(c *ui.Context) {
 		case d.change != nil && d.change.Conflict:
 			ui.Column(c).Fill().Center().Children(func() { ui.Spinner(c).Size(18, 18) })
 		case d.change != nil:
-			ui.Row(c).Padding(8, 12).Gap(8).BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
-				ui.Text(c, d.change.Path).Bold().SingleLine()
+			a.detailHeader(c, func() {
 				side := loc.SideWorktree()
 				if d.staged {
 					side = loc.SideStaged()
 				}
+				ui.Text(c, d.change.Path).Bold().SingleLine().Grow(1).Basis(0).Tooltip(d.change.Path)
 				ui.Badge(c, side)
-				ui.Box(c).Grow(1)
+			}, func() {
 				a.changeNav(c)
 				if d.whole && d.diff != nil && ui.Toggle(c, &prefs.FoldUnchanged, loc.FoldUnchanged()).Changed() {
 					d.diff.ExpandUnchanged = !prefs.FoldUnchanged
@@ -588,40 +538,53 @@ func (a *app) detailView(c *ui.Context) {
 			})
 			a.diffView(c)
 		default:
-			ui.Column(c).Fill().Center().Children(func() {
-				ui.Text(c, loc.DetailEmpty()).TextColor(t.TextMuted)
-			})
+			a.emptyDetail(c)
 		}
+	})
+}
+
+// detailHeader keeps actions reachable when the sidebar leaves a narrow diff.
+func (a *app) detailHeader(c *ui.Context, title, actions func()) {
+	if a.detailWidth(c) < 720 {
+		ui.Column(c).Padding(8, 12).Gap(5).BorderWidth(0, 0, 1, 0).BorderColor(c.Theme().Border).Children(func() {
+			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(title)
+			ui.ScrollHorizontal(c).FillWidth().Children(func() {
+				ui.Row(c).Shrink(0).Gap(8).AlignItems(ui.Center).Children(actions)
+			})
+		})
+		return
+	}
+	ui.Row(c).Padding(8, 12).Gap(8).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(c.Theme().Border).Children(func() {
+		title()
+		actions()
 	})
 }
 
 func (a *app) commitHeader(c *ui.Context, cm *git.Commit) {
 	t := c.Theme()
 	d := &a.detail
-	ui.Column(c).Padding(8, 12).Gap(3).BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
-		ui.Text(c, cm.Subject).Bold().SingleLine()
-		if comparing(cm) {
-			ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, loc.FilesDiffer(len(d.files))).TextColor(t.TextMuted)
-				ui.Box(c).Grow(1)
-				a.whitespaceMenu(c)
-				if d.diff != nil {
-					wrapToggle(c, d.diff)
-				}
-			})
-			return
+	ui.Column(c).Padding(8, 12).Gap(4).BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
+		ui.Text(c, cm.Subject).Bold().SingleLine().Tooltip(cm.Subject)
+		metadata := func() {
+			if comparing(cm) {
+				ui.Text(c, loc.FilesDiffer(len(d.files))).TextColor(t.TextMuted).SingleLine().Grow(1).Basis(0)
+				return
+			}
+			ui.Text(c, cm.Short()).Font("monospace").TextColor(t.Accent).Tooltip(cm.Hash).Shrink(0)
+			ui.Text(c, cm.Author).TextColor(t.TextMuted).SingleLine().Shrink(0)
+			ui.Text(c, cm.Time.Format("2006-01-02 15:04")).TextColor(t.TextMuted).SingleLine().Grow(1).Basis(0)
 		}
-		ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, cm.Short()).Font("monospace").TextColor(t.Accent).Tooltip(cm.Hash)
-			ui.Text(c, cm.Author).TextColor(t.TextMuted)
-			ui.Text(c, cm.Time.Format("2006-01-02 15:04")).TextColor(t.TextMuted)
-			ui.Box(c).Grow(1)
-			a.changeNav(c)
+		actions := func() {
+			if !comparing(cm) {
+				a.changeNav(c)
+			}
 			a.whitespaceMenu(c)
 			if d.diff != nil {
 				wrapToggle(c, d.diff)
 			}
-			if n := len(cm.Parents); n > 1 {
+		}
+		parentPicker := func() {
+			if n := len(cm.Parents); n > 1 && !comparing(cm) {
 				labels := make([]string, n)
 				for i, p := range cm.Parents {
 					labels[i] = loc.ParentN(i+1, p[:8])
@@ -631,8 +594,21 @@ func (a *app) commitHeader(c *ui.Context, cm *git.Commit) {
 					a.showParent(slices.Index(labels, label))
 				}
 			}
-		})
-		if body := strings.TrimSpace(strings.TrimPrefix(d.message, cm.Subject)); body != "" {
+		}
+		if a.detailWidth(c) < 720 {
+			ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
+				metadata()
+				parentPicker()
+			})
+			ui.ScrollHorizontal(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(actions)
+		} else {
+			ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
+				metadata()
+				actions()
+				parentPicker()
+			})
+		}
+		if body := strings.TrimSpace(strings.TrimPrefix(d.message, cm.Subject)); body != "" && !comparing(cm) {
 			ui.Text(c, body).TextColor(t.TextMuted).Wrap().MaxLines(6)
 		}
 	})

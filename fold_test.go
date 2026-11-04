@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	loc "mygit/locales"
 )
 
 // commitFiles commits files, by name and text, in the tester's repository.
@@ -43,6 +45,7 @@ func TestGeneratedFilesFold(t *testing.T) {
 		"main.go":        "package main\n\nfunc main() { run() }\n",
 		"docs/notes.md":  "# Notes\n",
 	})
+	tt.click(t, loc.History())
 	tt.click(t, "Bump the deps")
 	d := &tt.a.detail
 	gen := map[string]bool{}
@@ -77,6 +80,7 @@ func TestGeneratedFilesFold(t *testing.T) {
 func TestViewedFiles(t *testing.T) {
 	tt := newTester(t)
 	tt.commitFiles(t, "Three files", map[string]string{"a.go": "package a\n", "b.go": "package b\n", "c.go": "package c\n"})
+	tt.click(t, loc.History())
 	tt.click(t, "Three files")
 	a := tt.a
 	if !tt.HasText("已看 0/4") {

@@ -33,19 +33,19 @@ func (a *app) logView(c *ui.Context) {
 	t := c.Theme()
 	a.updateMatches()
 	ui.Column(c).Fill().Children(func() {
-		ui.Row(c).Padding(6, 12).Gap(8).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
-			ui.Text(c, loc.History()).Bold().TextColor(t.TextMuted)
-			count := loc.CommitCount(len(a.commits))
-			if a.searching() {
-				count = loc.CommitsMatching(len(a.matches), len(a.commits))
-			}
-			ui.Text(c, count).TextColor(t.TextMuted)
-			if a.loading {
-				ui.Spinner(c).Size(12, 12)
-			}
-			ui.Box(c).Grow(1)
-			a.historyColumns(c)
+		ui.Column(c).Padding(8, 10).Gap(6).BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
 			a.searchField(c)
+			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+				count := loc.CommitCount(len(a.commits))
+				if a.searching() {
+					count = loc.CommitsMatching(len(a.matches), len(a.commits))
+				}
+				ui.Text(c, count).TextColor(t.TextMuted).SingleLine().Grow(1).Basis(0)
+				if a.loading {
+					ui.Spinner(c).Size(12, 12)
+				}
+				a.historyColumns(c)
+			})
 		})
 		if a.scope.Ref != "HEAD" {
 			a.scopeBanner(c, loc.RefOnly(a.scope.Ref), loc.BackToCurrentBranch(), git.Scope{Ref: "HEAD", Path: a.scope.Path})
@@ -55,7 +55,7 @@ func (a *app) logView(c *ui.Context) {
 		}
 		lanes := 0
 		if !a.searching() {
-			lanes = a.visibleLanes()
+			lanes = min(a.visibleLanes(), 4)
 		}
 		l := ui.List(c.Key("log"), &a.logList, a.logCount(), func(i int) {
 			ci := a.commitAt(i)
@@ -63,13 +63,11 @@ func (a *app) logView(c *ui.Context) {
 			a.logRow(c, cm, &a.rows[ci], lanes, i == a.logSel || a.logChosen.Has(cm.Hash))
 		}).Grow(1).Basis(0)
 		if l.Changed() && a.logSel >= 0 && a.logSel < a.logCount() {
-			a.stagedSel, a.unstagedSel = -1, -1
 			if !a.compareChosen() {
 				a.showCommit(a.commitAt(a.logSel))
 			}
 		}
 	})
-	c.OnShortcut(ui.Cmd, ui.KeyF, func() { a.searchBox.Focus() })
 	c.OnShortcut(0, ui.KeyF2, func() {
 		if a.logSel >= 0 && a.logSel < a.logCount() {
 			a.planReword(a.commits[a.commitAt(a.logSel)])
@@ -81,7 +79,7 @@ func (a *app) logView(c *ui.Context) {
 // wider.
 func (a *app) scopeBanner(c *ui.Context, text, button string, wider git.Scope) {
 	ui.Row(c).Padding(4, 12).Gap(8).AlignItems(ui.Center).Background(c.Theme().Accent.Alpha(0.1)).Children(func() {
-		ui.Text(c, text).Grow(1)
+		ui.Text(c, text).Wrap().Grow(1).Basis(0)
 		if ui.Button(c, button).Clicked() {
 			a.setScope(wider)
 		}
@@ -89,9 +87,18 @@ func (a *app) scopeBanner(c *ui.Context, text, button string, wider git.Scope) {
 }
 
 func (a *app) setScope(s git.Scope) {
+	if a.leaving(func() { a.setScope(s) }) {
+		return
+	}
 	if s != a.scope {
+		a.detail = detail{gen: a.detail.gen + 1}
+		a.logChosen.Clear()
 		a.scope = s
 		a.loadLog()
+	}
+	a.selectTab(historyTab)
+	if prefs.SidebarHidden {
+		a.toggleSidebar()
 	}
 }
 
@@ -181,32 +188,43 @@ func (a *app) logRow(c *ui.Context, cm *git.Commit, row *graph.Row, lanes int, c
 			ui.Text(c, cm.Short()).Font("monospace").FontSize(11).TextColor(muted).Width(56).Tooltip(cm.Hash)
 		}
 	}
-	ui.Row(c).Height(rowHeight).PaddingX(4).Gap(6).AlignItems(ui.Center).ContextMenu(func(m *ui.Menu) {
+	const height = 42
+	ui.Row(c).Height(height).Padding(0, 8, 0, 4).Gap(6).AlignItems(ui.Center).ContextMenu(func(m *ui.Menu) {
 		a.commitMenu(m, *cm)
 	}).Children(func() {
 		if lanes > 0 {
 			unpushed := a.unpushed[cm.Hash]
-			g := ui.Box(c).Size(float32(lanes*laneWidth+4), rowHeight).Draw(func(p *ui.Painter, r ui.Rect) {
+			g := ui.Box(c).Size(float32(lanes*laneWidth+4), height).Shrink(0).Clip().Draw(func(p *ui.Painter, r ui.Rect) {
 				drawRow(p, r, row, unpushed)
 			})
 			if unpushed {
 				g.Tooltip(loc.Unpushed())
 			}
 		}
-		if !prefs.HistoryRefsRight {
-			refs()
-			hash()
-		}
-		subject := ui.Text(c, cm.Subject).SingleLine().Grow(1).Basis(0)
-		if head {
-			subject.Bold()
-		}
-		if prefs.HistoryRefsRight {
-			refs()
-			hash()
-		}
-		ui.Text(c, cm.Author).TextColor(muted).SingleLine().Width(120)
-		ui.Text(c, cm.Time.Format("2006-01-02 15:04")).TextColor(muted).Font("monospace").FontSize(11).Width(110)
+		ui.Column(c).Gap(2).Grow(1).Basis(0).Clip().Children(func() {
+			ui.Row(c).Gap(5).AlignItems(ui.Center).Children(func() {
+				if !prefs.HistoryRefsRight {
+					refs()
+				}
+				subject := ui.Text(c, cm.Subject).SingleLine().Grow(1).Basis(0).Tooltip(cm.Subject)
+				if head {
+					subject.Bold()
+				}
+				if prefs.HistoryRefsRight {
+					refs()
+				}
+			})
+			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+				if !prefs.HistoryRefsRight {
+					hash()
+				}
+				ui.Text(c, cm.Author).FontSize(11).TextColor(muted).SingleLine().Grow(1).Basis(0)
+				ui.Text(c, cm.Time.Format("2006-01-02")).FontSize(11).TextColor(muted).Shrink(0)
+				if prefs.HistoryRefsRight {
+					hash()
+				}
+			})
+		})
 	})
 }
 
@@ -293,7 +311,7 @@ func (a *app) compareChosen() bool {
 // says what it searches, and a button clearing it.
 func (a *app) searchField(c *ui.Context) {
 	t := c.Theme()
-	ui.Row(c).Width(280).Height(28).Gap(6).PaddingX(8).Radius(6).AlignItems(ui.Center).
+	ui.Row(c).FillWidth().Height(28).Gap(6).PaddingX(8).Radius(6).AlignItems(ui.Center).
 		Background(t.Surface).Border(1, t.Border).Children(func() {
 		ui.Icon(c, icons["search"]).Size(13, 13).TextColor(t.TextMuted)
 		ui.TextInputBase(c, &a.search).Placeholder(loc.SearchPlaceholder(shortcut("F"))).Label(loc.SearchHistory()).

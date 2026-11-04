@@ -112,7 +112,16 @@ func (tt *tester) click(t *testing.T, s string) {
 
 func TestHistory(t *testing.T) {
 	tt := newTester(t)
-	for _, s := range []string{"Merge the feature", "Write main", "Add the feature", "Start", "4 个提交", "main", "feature", "notes.txt"} {
+	if !tt.HasText("notes.txt") || tt.HasText("Merge the feature") {
+		t.Fatalf("expected Changes on launch: %q", tt.Texts())
+	}
+	tt.click(t, "notes.txt")
+	tt.Key(ui.Cmd, ui.KeyF)
+	tt.Frame()
+	if !tt.Focused(loc.SearchHistory()) {
+		t.Fatalf("history search did not take focus: %q", tt.Texts())
+	}
+	for _, s := range []string{"Merge the feature", "Write main", "Add the feature", "Start", "4 个提交", "main", "feature"} {
 		if !tt.HasText(s) {
 			t.Fatalf("no %q in %q", s, tt.Texts())
 		}
@@ -127,6 +136,16 @@ func TestHistory(t *testing.T) {
 	}
 	if !tt.HasText("feature.go") {
 		t.Errorf("no feature.go in %q", tt.Texts())
+	}
+	tt.Key(ui.Cmd, ui.Key1)
+	tt.settle()
+	if tt.shown() != "notes.txt" {
+		t.Fatalf("return to Changes showed %q", tt.shown())
+	}
+	tt.Key(ui.Cmd, ui.Key2)
+	tt.settle()
+	if cm := tt.a.detail.commit; cm == nil || cm.Subject != "Add the feature" {
+		t.Fatalf("return to History showed %+v", cm)
 	}
 }
 
@@ -188,6 +207,7 @@ func TestWrapToggle(t *testing.T) {
 		t.Fatalf("after its toggle: pref %v, diff %v", prefs.Wrap, tt.a.detail.diff.Wrap)
 	}
 	// The diffs opened next wrap too.
+	tt.click(t, loc.History())
 	tt.click(t, "Merge the feature")
 	if d := tt.a.detail.diff; d == nil || !d.Wrap {
 		t.Fatalf("the commit's diff %+v", d)
@@ -198,33 +218,48 @@ func TestSidebarToggle(t *testing.T) {
 	defer func(h bool) { prefs.SidebarHidden = h }(prefs.SidebarHidden)
 	prefs.SidebarHidden = false
 	tt := newTester(t)
-	before, ok := tt.Find("Merge the feature")
+	tt.click(t, loc.History())
+	tt.click(t, "Merge the feature")
+	before, ok := tt.Find("feature.go")
 	if !ok {
-		t.Fatalf("no history: %q", tt.Texts())
+		t.Fatalf("no commit file: %q", tt.Texts())
 	}
 	tt.click(t, loc.HideSidebar())
-	if !prefs.SidebarHidden || tt.HasText(loc.Staged()) || tt.HasText(loc.Message()) {
+	if !prefs.SidebarHidden || tt.HasText(loc.SearchHistory()) || tt.HasText(loc.History()) {
 		t.Fatalf("after hiding it: pref %v, texts %q", prefs.SidebarHidden, tt.Texts())
 	}
-	// The history takes the room, rather than a strip of the split's.
-	after, ok := tt.Find("Merge the feature")
-	if !ok || after.X >= before.X-100 {
-		t.Fatalf("the history was at %v, and is at %v", before.X, after.X)
+	after, ok := tt.Find("feature.go")
+	if !ok || after.X >= before.X-100 || tt.a.detail.diff == nil {
+		t.Fatalf("commit detail before %v, after %v", before, after)
 	}
-	// And its diffs still have room under it.
-	tt.click(t, "Merge the feature")
-	if d := tt.a.detail; d.commit == nil || d.commit.Subject != "Merge the feature" || d.diff == nil {
-		t.Fatalf("the commit's detail %+v", d)
-	}
-	// Its way back, as the button names it now, and the key.
 	tt.click(t, loc.ShowSidebar())
-	if prefs.SidebarHidden || !tt.HasText(loc.Staged()) {
+	if prefs.SidebarHidden || !tt.HasText(loc.SearchHistory()) {
 		t.Fatalf("after showing it: pref %v, texts %q", prefs.SidebarHidden, tt.Texts())
 	}
 	tt.Key(ui.Cmd, ui.KeyB)
 	tt.settle()
 	if !prefs.SidebarHidden {
 		t.Fatalf("the key didn't hide it: texts %q", tt.Texts())
+	}
+}
+
+func TestRepositorySidebarToggle(t *testing.T) {
+	old := *prefs
+	t.Cleanup(func() { *prefs = old })
+	prefs.SidebarHidden, prefs.RepoSidebarHidden = false, false
+	tt := newTester(t)
+	prefs.LocalRepos = []string{tt.a.repo.Dir}
+	tt.Frame()
+	if !tt.HasText(loc.LocalRepositories()) || !tt.HasText(loc.AddLocalRepo()) {
+		t.Fatalf("repository sidebar missing: %q", tt.Texts())
+	}
+	tt.click(t, loc.HideRepoSidebar())
+	if tt.HasText(loc.LocalRepositories()) || !tt.HasText(loc.HideSidebar()) {
+		t.Fatalf("unexpected panels after hiding the repository sidebar: %q", tt.Texts())
+	}
+	tt.click(t, loc.ShowRepoSidebar())
+	if !tt.HasText(loc.LocalRepositories()) || !tt.HasText(loc.HideSidebar()) {
+		t.Fatalf("repository sidebar did not reopen: %q", tt.Texts())
 	}
 }
 
@@ -238,9 +273,14 @@ func TestStageAndCommit(t *testing.T) {
 	if len(tt.a.staged) != 1 || len(tt.a.unstaged) != 0 {
 		t.Fatalf("staged %v, unstaged %v", tt.a.staged, tt.a.unstaged)
 	}
-	tt.click(t, "提交说明")
+	tt.click(t, loc.CommitSummary())
 	tt.Type("Take notes")
-	tt.click(t, "提交 1 个文件")
+	tt.click(t, loc.CommitDescription())
+	tt.Type("Keep the reminder.")
+	tt.click(t, loc.CommitToBranch("main"))
+	if msg := tt.a.repo.LastMessage(context.Background()); strings.TrimSpace(msg) != "Take notes\n\nKeep the reminder." {
+		t.Fatalf("commit message %q", msg)
+	}
 	if tt.a.errMsg != "" {
 		t.Fatal(tt.a.errMsg)
 	}
@@ -248,11 +288,23 @@ func TestStageAndCommit(t *testing.T) {
 		t.Fatalf("after committing: %d commits, first %q, staged %v, message %q",
 			len(tt.a.commits), tt.a.commits[0].Subject, tt.a.staged, tt.a.message)
 	}
+	if err := tt.a.repo.AddRemote(context.Background(), "origin", "git@github.com:example/notes.git"); err != nil {
+		t.Fatal(err)
+	}
+	tt.a.refresh()
+	tt.settle()
+	if !tt.HasText(loc.NoLocalChanges()) {
+		t.Fatalf("missing clean state: %q", tt.Texts())
+	}
+	tt.click(t, loc.ViewOnGitHub())
+	if got := tt.OpenedURLs(); len(got) != 1 || got[0] != "https://github.com/example/notes" {
+		t.Fatalf("opened URLs %v", got)
+	}
 }
 
 func TestUpBringsBackRecentMessages(t *testing.T) {
 	tt := newTester(t)
-	tt.click(t, "提交说明")
+	tt.click(t, loc.CommitSummary())
 	for _, step := range []struct {
 		key  ui.Key
 		want string
@@ -354,6 +406,7 @@ func TestWholeRuns(t *testing.T) {
 
 func TestSearchAndScope(t *testing.T) {
 	tt := newTester(t)
+	tt.click(t, loc.History())
 	tt.click(t, "搜索历史")
 	tt.Type("FEATURE")
 	tt.settle()
@@ -378,6 +431,7 @@ func TestSearchAndScope(t *testing.T) {
 
 func TestBranchFromCommitAndDelete(t *testing.T) {
 	tt := newTester(t)
+	tt.click(t, loc.History())
 	if err := tt.RightClick("Write main"); err != nil {
 		t.Fatal(err)
 	}
@@ -412,6 +466,7 @@ func TestBranchFromCommitAndDelete(t *testing.T) {
 
 func TestResetHardAsks(t *testing.T) {
 	tt := newTester(t)
+	tt.click(t, loc.History())
 	if err := tt.RightClick("Start"); err != nil {
 		t.Fatal(err)
 	}
@@ -525,6 +580,7 @@ func TestMove(t *testing.T) {
 
 func TestInteractiveRebaseDialog(t *testing.T) {
 	tt := newTester(t)
+	tt.click(t, loc.History())
 	if _, err := tt.a.repo.Git(context.Background(), "switch", "-q", "feature"); err != nil {
 		t.Fatal(err)
 	}
@@ -555,6 +611,7 @@ func TestInteractiveRebaseDialog(t *testing.T) {
 
 func TestEditCommitMessage(t *testing.T) {
 	tt := newTester(t)
+	tt.click(t, loc.History())
 	ctx := context.Background()
 	if _, err := tt.a.repo.Git(ctx, "switch", "-q", "feature"); err != nil {
 		t.Fatal(err)
@@ -587,6 +644,7 @@ func TestEditCommitMessage(t *testing.T) {
 
 func TestSquashCommits(t *testing.T) {
 	tt := newTester(t)
+	tt.click(t, loc.History())
 	ctx := context.Background()
 	if _, err := tt.a.repo.Git(ctx, "switch", "-q", "feature"); err != nil {
 		t.Fatal(err)
@@ -635,6 +693,7 @@ func TestDropCommit(t *testing.T) {
 	}
 	tt.a.refresh()
 	tt.settle()
+	tt.click(t, loc.History())
 	if err := tt.RightClick("Add the feature"); err != nil {
 		t.Fatal(err)
 	}
@@ -655,6 +714,7 @@ func TestDropCommit(t *testing.T) {
 
 func TestBlameAndParents(t *testing.T) {
 	tt := newTester(t)
+	tt.click(t, loc.History())
 	tt.click(t, "Merge the feature")
 	d := tt.a.detail
 	if d.commit == nil || len(d.files) != 1 || d.files[0].NewName != "feature.go" || !tt.HasText("对比父提交 1（"+d.commit.Parents[0][:8]+"）") {
@@ -690,17 +750,17 @@ func TestPushDialog(t *testing.T) {
 	if out, err := exec.Command("git", "init", "-q", "--bare", origin).CombinedOutput(); err != nil {
 		t.Fatalf("%v %s", err, out)
 	}
-	if _, err := tt.a.repo.Git(ctx, "remote", "add", "origin", origin); err != nil {
+	if _, err := tt.a.repo.Git(ctx, "remote", "add", "forge", origin); err != nil {
 		t.Fatal(err)
 	}
 	tt.a.refresh()
 	tt.settle()
-	tt.click(t, "推送…")
-	if !tt.HasText("推送 main → origin/main（新建）") || !tt.HasText("4 个提交") {
+	tt.click(t, loc.PublishBranch())
+	if !tt.HasText("推送 main → forge/main（新建）") || !tt.HasText("4 个提交") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
-	tt.click(t, "推送")
-	if tt.a.errMsg != "" || tt.a.status.Upstream != "origin/main" {
+	tt.click(t, loc.Push())
+	if tt.a.errMsg != "" || tt.a.status.Upstream != "forge/main" || !tt.HasText(loc.FetchRemote("forge")) {
 		t.Fatalf("error %q, upstream %q", tt.a.errMsg, tt.a.status.Upstream)
 	}
 }
@@ -737,8 +797,7 @@ func TestPullStashesUntrackedInTheWay(t *testing.T) {
 	}
 	tt.a.refresh()
 	tt.settle()
-	tt.a.runPull("拉取", func(ctx context.Context) error { return tt.a.repo.Pull(ctx, git.PullFastForward) })
-	tt.settle()
+	tt.click(t, loc.PullRemote("origin"))
 	if q := tt.a.confirm; !q.open || q.message != loc.UntrackedInTheWayMessage("local.cfg\n配置.txt") || tt.a.errMsg != "" {
 		t.Fatalf("asking %+v, error %q", q, tt.a.errMsg)
 	}
@@ -850,6 +909,7 @@ func TestHistoryColumns(t *testing.T) {
 	}(prefs.HistoryHash, prefs.HideHistoryTags, prefs.HideHistoryBranches, prefs.HistoryRefsRight)
 	prefs.HistoryHash, prefs.HideHistoryTags, prefs.HideHistoryBranches, prefs.HistoryRefsRight = false, false, false, false
 	tt := newTester(t)
+	tt.click(t, loc.History())
 	out, err := tt.a.repo.Git(context.Background(), "rev-parse", "HEAD")
 	if err != nil {
 		t.Fatal(err)
@@ -906,6 +966,7 @@ func TestOverviewWidth(t *testing.T) {
 
 func TestUnpushedCommits(t *testing.T) {
 	tt := newTester(t)
+	tt.click(t, loc.History())
 	ctx := context.Background()
 	origin := t.TempDir()
 	for _, args := range [][]string{{"init", "-q", "--bare", "-b", "main", origin}} {
@@ -925,8 +986,8 @@ func TestUnpushedCommits(t *testing.T) {
 	tt.a.refresh()
 	tt.settle()
 	head, _ := tt.a.repo.Git(ctx, "rev-parse", "HEAD")
-	if len(tt.a.unpushed) != 1 || !tt.a.unpushed[strings.TrimSpace(head)] || !tt.HasText("Polish") {
-		t.Fatalf("unpushed %v", tt.a.unpushed)
+	if len(tt.a.unpushed) != 1 || !tt.a.unpushed[strings.TrimSpace(head)] || !tt.HasText("Polish") || !tt.HasText(loc.PushRemote("origin")) {
+		t.Fatalf("unpushed %v, texts %q", tt.a.unpushed, tt.Texts())
 	}
 	if _, err := tt.a.repo.Git(ctx, "push", "-q"); err != nil {
 		t.Fatal(err)
@@ -1005,6 +1066,7 @@ func TestEditInDiff(t *testing.T) {
 
 func TestSettingsLayout(t *testing.T) {
 	tt := newTester(t)
+	tt.click(t, loc.History())
 	tt.click(t, "Write main")
 	prefs.Unified = true
 	defer func() { prefs.Unified = false }()
@@ -1017,6 +1079,7 @@ func TestSettingsLayout(t *testing.T) {
 
 func TestCompare(t *testing.T) {
 	tt := newTester(t)
+	tt.click(t, loc.History())
 	tt.click(t, "Start")
 	if err := tt.ClickWith(ui.Cmd, "Write main"); err != nil {
 		t.Fatal(err)
@@ -1078,26 +1141,19 @@ func TestWelcomeOffersTrust(t *testing.T) {
 	}
 }
 
-// The sections' headers stay put as files are staged and unstaged.
+// A file stays in the same place as it moves between otherwise empty lists.
 func TestHeadersDontMove(t *testing.T) {
 	tt := newTester(t)
-	header := func() ui.Rect {
-		t.Helper()
-		r, ok := tt.Find("暂存的更改")
-		if !ok {
-			t.Fatalf("no header in %q", tt.Texts())
-		}
-		return r
+	before, _ := tt.Find("notes.txt")
+	tt.click(t, loc.StageAll())
+	staged, _ := tt.Find("notes.txt")
+	if !tt.HasText(loc.Staged()) {
+		t.Fatalf("no staged header: %q", tt.Texts())
 	}
-	before := header()
-	fileBefore, _ := tt.Find("notes.txt")
-	tt.click(t, "全部暂存")
-	staged := header()
-	tt.click(t, "全部取消暂存")
-	after := header()
-	fileAfter, _ := tt.Find("notes.txt")
-	if before != staged || staged != after || fileBefore.Y != fileAfter.Y {
-		t.Fatalf("header at %+v, %+v, %+v; file %+v → %+v", before, staged, after, fileBefore, fileAfter)
+	tt.click(t, loc.UnstageAll())
+	after, _ := tt.Find("notes.txt")
+	if before.Y != staged.Y || staged.Y != after.Y {
+		t.Fatalf("file before staging %v, staged %v, after unstaging %v", before, staged, after)
 	}
 }
 
@@ -1136,8 +1192,8 @@ func TestBranchesPopoverAndKeys(t *testing.T) {
 	}
 	tt.Type("feat")
 	tt.Frame()
-	if tt.HasText("main") && !tt.HasText("⎇ main ▾") {
-		t.Fatalf("main still listed: %q", tt.Texts())
+	if !tt.HasText(loc.CurrentBranch()) || !tt.HasText("feature") {
+		t.Fatalf("current branch or search result missing: %q", tt.Texts())
 	}
 	tt.Key(0, ui.KeyEnter)
 	tt.settle()
@@ -1164,7 +1220,7 @@ func TestEnglish(t *testing.T) {
 	i18n.SetLocaleFunc(func() string { return "en" })
 	defer i18n.SetLocaleFunc(func() string { return "zh-Hans" })
 	tt := newTester(t)
-	for _, s := range []string{"Staged Changes", "Changes", "Commit message", "Amend last commit", "History", "4 commits"} {
+	for _, s := range []string{"Changes", "Summary (required)", "Description", "Amend last commit", "History", "Commit to main"} {
 		if !tt.HasText(s) {
 			t.Fatalf("no %q in %q", s, tt.Texts())
 		}
@@ -1187,7 +1243,7 @@ func TestTraditionalChinese(t *testing.T) {
 	i18n.SetLocaleFunc(func() string { return "zh-Hant" })
 	defer i18n.SetLocaleFunc(func() string { return "zh-Hans" })
 	tt := newTester(t)
-	for _, s := range []string{"暫存的更改", "更改", "提交訊息", "全部暫存", "丟棄全部更改", "歷史", "儲存庫"} {
+	for _, s := range []string{"更改", "摘要（必填）", "詳細說明", "全部暫存", "丟棄全部更改", "歷史", "儲存庫"} {
 		if !tt.HasText(s) {
 			t.Fatalf("no %q in %q", s, tt.Texts())
 		}
@@ -1252,17 +1308,16 @@ func TestEditKeepsItsPlace(t *testing.T) {
 		t.Fatalf("expanded %v, caret on line %d", d.ExpandUnchanged, d.CursorPos().Line)
 	}
 	tt.Frame()
-	// The lines above the change, as they show, less the diff's scroll
-	// bar at the right edge: MyGo v0.7.4 shows its slider as the pointer
-	// comes over the view, and the overview strip leaves it left of 1170.
-	above := image.Rect(760, 450, 1170, 610)
+	// Compare the visible text above the change, between the new side's
+	// gutter and scrollbar.
+	d.Run(editor.MoveLineEnd)
+	tt.Frame()
+	above := image.Rect(910, 180, 1170, 340)
 	before := image.NewRGBA(above)
 	draw.Draw(before, above, tt.Image(), above.Min, draw.Src)
-	// Type the change away, from the end of its line, the caret's.
-	tt.ClickAt(1000, 624)
-	tt.Frame()
+	// Remove the changed text from the end of the line.
 	for range " changed" {
-		tt.Key(0, ui.KeyBackspace)
+		d.Run(editor.Backspace)
 		tt.Frame()
 	}
 	if got := strings.Split(d.New.String(), "\n")[39]; got != "line 40" || len(d.Hunks()) != 0 {
@@ -1312,17 +1367,21 @@ func TestBranchMenuClosesPopover(t *testing.T) {
 	tt := newTester(t)
 	// The popover's first local branch, under its heading: "feature" is
 	// in the history too.
-	firstBranch := func() {
+	firstBranch := func(menu bool) {
 		t.Helper()
 		r, ok := tt.Find(loc.BranchesLocal())
 		if !ok {
 			t.Fatalf("texts %q", tt.Texts())
 		}
-		tt.ClickAt(r.X+30, r.Y+r.H+16)
+		if menu {
+			tt.RightClickAt(r.X+30, r.Y+r.H+16)
+		} else {
+			tt.ClickAt(r.X+30, r.Y+r.H+16)
+		}
 		tt.Frame()
 	}
 	tt.click(t, "分支")
-	firstBranch()
+	firstBranch(true)
 	if err := tt.ChooseMenuItem(loc.BranchHistory()); err != nil {
 		t.Fatalf("%v; menu %q", err, tt.Menu())
 	}
@@ -1331,10 +1390,7 @@ func TestBranchMenuClosesPopover(t *testing.T) {
 		t.Fatalf("open %v, scope %+v, texts %q", tt.a.branchesOpen, tt.a.scope, tt.Texts())
 	}
 	tt.click(t, "分支")
-	firstBranch()
-	if err := tt.ChooseMenuItem(loc.BranchSwitch()); err != nil {
-		t.Fatalf("%v; menu %q", err, tt.Menu())
-	}
+	firstBranch(false)
 	tt.settle()
 	if tt.a.branchesOpen || tt.a.status.Branch != "feature" {
 		t.Fatalf("open %v, branch %q", tt.a.branchesOpen, tt.a.status.Branch)
@@ -1423,7 +1479,12 @@ func TestWorktreesInBranchesPopover(t *testing.T) {
 		if !ok {
 			t.Fatalf("texts %q", tt.Texts())
 		}
-		tt.ClickAt(r.X+30, r.Y+r.H+16+float32(n*27))
+		x, y := r.X+30, r.Y+r.H+16+float32(n*27)
+		if section == loc.BranchesLocal() {
+			tt.RightClickAt(x, y)
+		} else {
+			tt.ClickAt(x, y)
+		}
 		tt.Frame()
 	}
 	tt.click(t, "分支")
@@ -1559,6 +1620,7 @@ func TestWhitespaceMenu(t *testing.T) {
 	}
 	tt.a.refresh()
 	tt.settle()
+	tt.click(t, loc.History())
 	tt.click(t, "Spaces")
 	tt.settle()
 	if len(tt.a.detail.files) != 0 {

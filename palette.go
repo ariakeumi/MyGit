@@ -188,7 +188,7 @@ func (a *app) chooseChange(i int, staged bool) {
 	if !again && a.leaving(func() { a.chooseChange(indexOf(a.changes(staged), ch.Path), staged) }) {
 		return
 	}
-	a.leftTab = 0
+	a.leftTab = changesTab
 	if staged {
 		a.stagedSel, a.unstagedSel = i, -1
 	} else {
@@ -210,7 +210,7 @@ func (a *app) openCommands() {
 	add(len(a.detail.files) > 0 || len(a.staged)+len(a.unstaged) > 0, loc.GoToFile(), shortcut("P"), a.openFiles)
 	add(a.detail.diff != nil || a.fileStep(1) != nil, loc.NextChange(), "F7", func() { a.stepChange(false) })
 	add(a.detail.diff != nil || a.fileStep(-1) != nil, loc.PreviousChange(), shiftKey("F7"), func() { a.stepChange(true) })
-	add(true, loc.SearchHistory(), shortcut("F"), func() { a.searchBox.Focus() })
+	add(true, loc.SearchHistory(), shortcut("F"), a.focusHistory)
 	add(a.canCommit(), loc.Commit(), shortcut("↩"), a.commit)
 	add(idle && len(a.unstaged) > 0, loc.StageAll(), "", a.stageAll)
 	add(idle && len(a.staged) > 0, loc.UnstageAll(), "", a.unstageAll)

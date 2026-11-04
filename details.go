@@ -97,16 +97,26 @@ type pushPlan struct {
 	open    bool
 	loading bool
 	commits []git.Commit
+	remote  string
+	status  git.Status
 	force   bool
 }
 
 func (a *app) openPush() {
-	st := a.status
-	a.push = pushPlan{open: true, loading: true}
+	st, remote := a.status, a.syncRemote()
+	if remote == "" {
+		a.openRemotes()
+		return
+	}
+	p := &pushPlan{open: true, loading: true, remote: remote, status: st}
+	a.push = p
 	work(a, func(ctx context.Context) ([]git.Commit, error) { return a.repo.Outgoing(ctx, st) },
 		func(commits []git.Commit, err error) {
-			a.push.loading = false
-			a.push.commits = commits
+			if a.push != p || !p.open {
+				return
+			}
+			p.loading = false
+			p.commits = commits
 			if err != nil {
 				a.errMsg = err.Error()
 			}
@@ -114,17 +124,18 @@ func (a *app) openPush() {
 }
 
 func (a *app) pushView(c *ui.Context) {
-	p := &a.push
-	if !p.open {
+	p := a.push
+	if p == nil || !p.open {
 		return
 	}
 	t := c.Theme()
-	st := a.status
+	st := p.status
+	stale := st.Branch != a.status.Branch || st.Upstream != a.status.Upstream || p.remote != a.syncRemote()
 	ui.Modal(c, &p.open, func() {
 		ui.Column(c).Gap(10).Width(560).Children(func() {
 			target := st.Upstream
 			if target == "" {
-				target = loc.NewRemoteBranch("origin/" + st.Branch)
+				target = loc.NewRemoteBranch(p.remote + "/" + st.Branch)
 			}
 			ui.Text(c, loc.PushTitle(st.Branch, target)).Bold().FontSize(15)
 			switch {
@@ -145,9 +156,10 @@ func (a *app) pushView(c *ui.Context) {
 			}
 			ui.Checkbox(c, &p.force, loc.ForcePush())
 			ui.Row(c).Gap(8).Justify(ui.End).Children(func() {
-				if ui.Button(c, loc.PushTags()).Tooltip("git push origin --tags").Clicked() {
+				if ui.Button(c, loc.PushTags()).Tooltip("git push " + p.remote + " --tags").Disabled(stale || a.busy != "").Clicked() {
 					p.open = false
-					a.run(loc.OpPushTags(), a.repo.PushTags, nil)
+					remote := p.remote
+					a.run(loc.OpPushTags(), func(ctx context.Context) error { return a.repo.PushTags(ctx, remote) }, nil)
 				}
 				ui.Box(c).Grow(1)
 				if ui.Button(c, loc.Cancel()).Clicked() {
@@ -157,10 +169,15 @@ func (a *app) pushView(c *ui.Context) {
 				if p.force {
 					label = loc.ForcePushButton()
 				}
-				if ui.PrimaryButton(c, label).Disabled(p.loading || a.busy != "").Clicked() {
+				if ui.PrimaryButton(c, label).Disabled(p.loading || stale || a.busy != "").Clicked() {
 					p.open = false
-					force := p.force
-					a.run(label, func(ctx context.Context) error { return a.repo.Push(ctx, st, force) }, nil)
+					force, remote := p.force, p.remote
+					a.run(label, func(ctx context.Context) error {
+						if st.Upstream == "" {
+							return a.repo.PublishBranch(ctx, remote, st.Branch, force)
+						}
+						return a.repo.Push(ctx, st, force)
+					}, nil)
 				}
 			})
 		})

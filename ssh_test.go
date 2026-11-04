@@ -13,6 +13,7 @@ import (
 
 	"mygit/internal/git"
 	"mygit/internal/helper"
+	loc "mygit/locales"
 )
 
 func TestParseLocation(t *testing.T) {
@@ -174,10 +175,14 @@ func TestRemoteRepository(t *testing.T) {
 	tt.Tester = ui.NewTester(a.view, 1200, 800)
 	a.start()
 	tt.settle()
-	for _, s := range []string{"SSH · box", "Merge the feature", "notes.txt"} {
+	for _, s := range []string{"SSH · box", "notes.txt"} {
 		if !tt.HasText(s) {
 			t.Fatalf("no %q in %q", s, tt.Texts())
 		}
+	}
+	tt.click(t, loc.History())
+	if !tt.HasText("Merge the feature") {
+		t.Fatalf("missing remote history: %q", tt.Texts())
 	}
 	if tt := newTester(t); tt.HasText("SSH · ") {
 		t.Error("a local repository shows a host")

@@ -461,6 +461,13 @@
   "cloneTitle": "Clone Repository",
   "cloneURLPlaceholder": "https://github.com/user/repo.git or git@…",
   "cloneURL": "Repository URL",
+  "cloneGithubRepos": "GitHub repositories",
+  "cloneGithubLoading": "Loading GitHub repositories…",
+  "cloneGithubFailed": "Could not load GitHub repositories.",
+  "cloneGithubRetry": "Retry",
+  "cloneGithubEmpty": "This token has no accessible repositories.",
+  "cloneGithubFilter": "Filter GitHub repositories",
+  "cloneGithubNoMatch": "No matching repositories.",
   "change": "Change…",
   "folderName": "Folder name",
   "clone": "Clone",
@@ -877,6 +884,10 @@
   "sidebar": "Sidebar",
   "hideSidebar": "Hide Sidebar",
   "showSidebar": "Show Sidebar",
+  "localRepositories": "Local Repositories",
+  "addLocalRepo": "Add Local Repository",
+  "hideRepoSidebar": "Hide Repository Sidebar",
+  "showRepoSidebar": "Show Repository Sidebar",
   "toggleSidebar": "Show or hide the sidebar",
   "messagePlaceholder": "Commit message ({shortcut} to commit)",
   "message": "Commit message",
@@ -1120,7 +1131,7 @@
     }
   },
   "pullNoGitHub": "The repository has no GitHub remote.",
-  "pullSignIn": "Sign in to GitHub to review: run gh auth login in a terminal, or set GH_TOKEN.",
+  "pullSignIn": "Use Sign in to GitHub in the toolbar to review pull requests.",
   "pullRequests": "Pull Requests",
   "pullRequestsMenu": "Pull Requests…",
   "pullNumber": "Number, as #12",
@@ -1478,5 +1489,72 @@
       }
     }
   },
-  "dropCommitMessage": "Their changes leave the current branch's history, and the commits after them are rebased."
+  "dropCommitMessage": "Their changes leave the current branch's history, and the commits after them are rebased.",
+  "currentRepository": "Current repository",
+  "currentBranch": "Current branch",
+  "commitSummary": "Summary (required)",
+  "commitDescription": "Description",
+  "commitToBranch": "Commit to {branch}",
+  "@commitToBranch": {
+    "placeholders": {
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "syncOptions": "Sync options",
+  "publishBranch": "Publish branch",
+  "pullRemote": "Pull {remote}",
+  "@pullRemote": {
+    "placeholders": {
+      "remote": {
+        "type": "String"
+      }
+    }
+  },
+  "pushRemote": "Push {remote}",
+  "@pushRemote": {
+    "placeholders": {
+      "remote": {
+        "type": "String"
+      }
+    }
+  },
+  "viewOnGitHub": "View on GitHub",
+  "selectChange": "Choose a changed file",
+  "selectChangeHint": "Select a file in Changes to review its diff.",
+  "selectCommit": "Choose a commit",
+  "selectCommitHint": "Select a commit in History to see its details and changed files.",
+  "selectStash": "Choose a stash",
+  "selectStashHint": "Select a stash to review the files it contains.",
+  "noLocalChanges": "No local changes",
+  "noLocalChangesHint": "Changes you make in this repository will appear here.",
+  "branchActions": "Branch actions",
+  "githubSignIn": "Sign in to GitHub",
+  "githubAccount": "GitHub account",
+  "githubSignedIn": "Signed in as @{login}",
+  "githubExternalAccount": "This account uses credentials from GitHub CLI or the environment.",
+  "githubBrowserHint": "Use GitHub CLI (gh) to authorize in your browser.",
+  "githubBrowserSignIn": "Sign in with browser",
+  "githubCliMissing": "GitHub CLI (gh) was not found. Install it for browser sign-in, or use a personal access token below.",
+  "githubInstallCLI": "Get GitHub CLI",
+  "githubDeviceHint": "Copy the one-time code, then open GitHub and paste it to authorize MyGit through GitHub CLI.",
+  "githubCopyCode": "Copy code",
+  "githubOpenBrowser": "Open GitHub in browser",
+  "githubSigningIn": "Waiting for GitHub…",
+  "githubBrowserFailed": "Browser sign-in could not complete. Try again or sign in with a personal access token.",
+  "githubTokenHint": "You can also sign in with a personal access token. MyGit saves it in your system credential store.",
+  "githubToken": "Personal access token",
+  "githubCreateToken": "Manage GitHub tokens",
+  "githubUseToken": "Sign in with token",
+  "githubTokenFailed": "The token could not be verified or saved. Check the token and your system credential store.",
+  "githubForgetToken": "Remove saved token",
+  "githubForgetFailed": "Could not remove the saved token from your system credential store.",
+  "@githubSignedIn": {
+    "placeholders": {
+      "login": {
+        "type": "String"
+      }
+    }
+  }
 }

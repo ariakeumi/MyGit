@@ -61,9 +61,19 @@ func (r *Repo) Push(ctx context.Context, st Status, force bool) error {
 		args = append(args, "--force-with-lease")
 	}
 	if st.Upstream == "" && st.Branch != "" {
-		args = append(args, "-u", "origin", st.Branch)
+		return r.PublishBranch(ctx, "origin", st.Branch, force)
 	}
 	_, err := r.Git(ctx, args...)
+	return err
+}
+
+// PublishBranch sends a branch to a remote and sets its upstream.
+func (r *Repo) PublishBranch(ctx context.Context, remote, branch string, force bool) error {
+	args := []string{"push", "--set-upstream"}
+	if force {
+		args = append(args, "--force-with-lease")
+	}
+	_, err := r.Git(ctx, append(args, "--", remote, "refs/heads/"+branch)...)
 	return err
 }
 
@@ -82,9 +92,9 @@ func (r *Repo) PushTag(ctx context.Context, name string) error {
 	return err
 }
 
-// PushTags sends every tag to origin.
-func (r *Repo) PushTags(ctx context.Context) error {
-	_, err := r.Git(ctx, "push", "origin", "--tags")
+// PushTags sends every tag to remote.
+func (r *Repo) PushTags(ctx context.Context, remote string) error {
+	_, err := r.Git(ctx, "push", "--tags", "--", remote)
 	return err
 }
 

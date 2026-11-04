@@ -23,13 +23,14 @@ var icon, _ = ui.DecodeBitmap(iconPNG)
 // welcome is the window that opens with no repository to show: a folder
 // to drop on it or to choose, and the repositories opened lately.
 type welcome struct {
-	win    *mygo.Window
-	recent []string
-	errMsg string
-	unsafe string // a repository another user owns, to trust
-	cred   credPrompt
-	clone  clonePlan
-	ssh    connectPlan
+	win         *mygo.Window
+	recent      []string
+	errMsg      string
+	unsafe      string // a repository another user owns, to trust
+	cred        credPrompt
+	githubLogin githubAccountDialog
+	clone       clonePlan
+	ssh         connectPlan
 	// dragging says folders are dragged over the window, which the drop
 	// zone shows.
 	dragging bool
@@ -66,7 +67,11 @@ func showWelcome() {
 		Content:   ui.View(w.view),
 	}))
 	dropMenuBar(w.win)
-	w.win.OnClosed(func() { welcomeWin = nil })
+	w.win.OnClosed(func() {
+		w.stopClone()
+		w.githubLogin.close()
+		welcomeWin = nil
+	})
 	welcomeWin = w
 }
 
@@ -104,9 +109,10 @@ func recentRepos() []string {
 }
 
 func (w *welcome) view(c *ui.Context) {
+	defer w.cred.view(c)
 	defer w.cloneView(c)
 	defer w.connectView(c)
-	defer w.cred.view(c)
+	defer w.githubLogin.view(c)
 	defer w.settings.view(c, false, nil)
 	// Folders dropped anywhere open; the drop zone lights up for them,
 	// with no hint over the window as well.
@@ -143,7 +149,7 @@ func (w *welcome) body(c *ui.Context) {
 		w.dropZone(c)
 		ui.Row(c).Gap(8).Children(func() {
 			if ui.Button(c, loc.CloneMenu()).Grow(1).Clicked() {
-				w.clone = clonePlan{open: true, parent: defaultParent()}
+				w.openClone()
 			}
 			if ui.Button(c, loc.InitMenu()).Grow(1).Clicked() {
 				go w.initRepo()
@@ -152,6 +158,7 @@ func (w *welcome) body(c *ui.Context) {
 				w.ssh = newConnectPlan()
 			}
 		})
+		w.githubLogin.button(c)
 		if w.errMsg != "" {
 			ui.Text(c, w.errMsg).TextColor(t.Danger).Wrap()
 		}

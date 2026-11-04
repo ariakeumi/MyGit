@@ -20,6 +20,7 @@ type Change struct {
 // Status is the branch and the files changed.
 type Status struct {
 	Branch        string // "" when HEAD is detached
+	HasHEAD       bool   // false before the first commit
 	Upstream      string
 	Ahead, Behind int
 	Changes       []Change
@@ -42,6 +43,8 @@ func parseStatus(out string) Status {
 	for i := 0; i < len(fields); i++ {
 		f := fields[i]
 		switch {
+		case strings.HasPrefix(f, "# branch.oid "):
+			s.HasHEAD = strings.TrimPrefix(f, "# branch.oid ") != "(initial)"
 		case strings.HasPrefix(f, "# branch.head "):
 			if b := strings.TrimPrefix(f, "# branch.head "); b != "(detached)" {
 				s.Branch = b

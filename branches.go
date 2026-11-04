@@ -142,6 +142,9 @@ func (a *app) chose(it *ui.MenuItem) bool {
 }
 
 func (a *app) switchTo(b string) {
+	if a.leaving(func() { a.switchTo(b) }) {
+		return
+	}
 	a.run(loc.OpSwitchTo(b), func(ctx context.Context) error { return a.repo.Switch(ctx, b) }, nil)
 }
 
@@ -150,7 +153,7 @@ func (a *app) switchTo(b string) {
 // working trees the search matches, each with its menu. Enter switches to
 // the first local one.
 func (a *app) branchesButton(c *ui.Context, label string) {
-	b := ui.Button(c, label).Label(loc.Branches()).Tooltip(loc.BranchesTip())
+	b := desktopButton(c.Key("current-branch"), "repo", loc.CurrentBranch(), label, true).Label(loc.Branches()).Tooltip(loc.BranchesTip())
 	if b.Clicked() {
 		a.branchesOpen, a.branchFilter = !a.branchesOpen, ""
 		if a.branchesOpen {
@@ -198,7 +201,21 @@ func (a *app) branchesButton(c *ui.Context, label string) {
 					}
 					for _, n := range names {
 						ui.Box(c.Key(title + n)).Children(func() {
-							branchMenuRow(c, n, n == cur, func(m *ui.Menu) { items(m, n) })
+							menu := func(m *ui.Menu) { items(m, n) }
+							if kind != "local" {
+								branchRowElement(c, n, "", false).Menu(menu)
+								return
+							}
+							ui.Row(c).AlignItems(ui.Center).Children(func() {
+								branchRowElement(c, n, currentNote(n == cur), n == cur).Grow(1).ContextMenu(menu).
+									OnClick(func() {
+										a.branchesOpen = false
+										if n != cur {
+											a.switchTo(n)
+										}
+									})
+								iconMenu(c, "more", loc.BranchActions(), menu)
+							})
 						})
 					}
 				}
@@ -286,11 +303,6 @@ func branchRowElement(c *ui.Context, name, note string, current bool) ui.Element
 		}
 	})
 	return row
-}
-
-// branchMenuRow is a branch's row, whose click opens its menu.
-func branchMenuRow(c *ui.Context, name string, current bool, items func(*ui.Menu)) {
-	branchRowElement(c, name, currentNote(current), current).Menu(items)
 }
 
 // mergeItems merge a branch into the current one, or rebase the current

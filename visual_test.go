@@ -41,6 +41,7 @@ func TestDumpThemes(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		tt := newTester(t)
 		tt.SetDark(dark)
+		tt.click(t, loc.History())
 		tt.click(t, "Merge the feature")
 		tt.a.errMsg = "示例错误：这是一条错误提示"
 		tt.Frame()
@@ -65,6 +66,7 @@ func TestDumpSidebar(t *testing.T) {
 	prefs.SidebarHidden = false
 	tt := newTester(t)
 	tt.SetDark(true)
+	tt.click(t, loc.History())
 	tt.click(t, "Merge the feature")
 	save := func(name string) {
 		tt.Frame()
@@ -100,6 +102,7 @@ func TestDumpFeatures(t *testing.T) {
 		"main.go":  "package main\n\nfunc main() { run() }\n",
 		"logo.png": pngOf(t, 320, 200, color.RGBA{61, 123, 255, 255}),
 	})
+	tt.click(t, loc.History())
 	tt.click(t, "Bump the deps and the logo")
 	tt.a.toggleViewed(tt.a.detail.fileSel)
 	for i, f := range tt.a.detail.files {
@@ -696,6 +699,7 @@ func TestDumpIssue10(t *testing.T) {
 	}
 	tt.a.refresh()
 	tt.settle()
+	tt.click(t, loc.History())
 	tt.click(t, "Merge the feature")
 	save(tt.Tester, "issue10-history-columns")
 
@@ -771,6 +775,7 @@ func TestDumpMygo074(t *testing.T) {
 
 	tt := newTester(t)
 	tt.SetDark(true)
+	tt.click(t, loc.History())
 	tt.click(t, "Merge the feature")
 	save(tt.Tester, "mygo074-window-dark")
 	tt.SetDark(false)

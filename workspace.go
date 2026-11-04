@@ -273,7 +273,7 @@ func openWorkspace(host, dir string, repos []*git.Repo) {
 			break
 		}
 	}
-	ws.win = mygo.NewWindow(customTitleBar(mygo.WindowOptions{
+	ws.win = mygo.NewWindow(repositoryWindowOptions(mygo.WindowOptions{
 		Title:     title,
 		Width:     1200,
 		Height:    800,
@@ -315,7 +315,7 @@ func (ws *workspace) activate(i int) {
 		return
 	}
 	from, to := ws.apps[ws.active], ws.apps[i]
-	to.sidebarW, to.logH, to.filesW, to.stagedPct = from.sidebarW, from.logH, from.filesW, from.stagedPct
+	to.sidebarW, to.filesW, to.filesH, to.stagedPct = from.sidebarW, from.filesW, from.filesH, from.stagedPct
 	ws.active = i
 }
 
@@ -465,8 +465,7 @@ func (ws *workspace) section(c *ui.Context, i int, a *app) {
 			return
 		}
 		ui.Column(c).Gap(6).Padding(4, 10, 8, 10).Children(func() {
-			// A line, growing with what is typed, as VS Code's.
-			a.messageField(c).Lines(1, 6).MinHeight(0)
+			a.messageFields(c, 1)
 			if st.Upstream != "" && counts(st) != "" {
 				if ui.Button(c, loc.SyncChanges(counts(st))).FillWidth().Disabled(a.busy != "").Clicked() {
 					a.sync()

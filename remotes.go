@@ -114,8 +114,13 @@ func (a *app) repoMenu(m *ui.Menu) {
 	if m.Item(loc.PullRequestsMenu()).Chosen() {
 		a.openPulls()
 	}
+	if link := a.gitHubURL(); link != "" && m.Item(loc.ViewOnGitHub()).Chosen() {
+		if err := mygo.Shell.OpenExternal(link); err != nil {
+			a.errMsg = err.Error()
+		}
+	}
 	if a.local() && m.Item(loc.ShowInFolder()).Chosen() {
-		mygo.Shell.ShowItemInFolder(a.repo.Dir)
+		a.showInFolder()
 	}
 	if m.Item(loc.OpenRepoInEditor()).Chosen() {
 		a.openInEditor(a.repo.Dir, 0)
@@ -127,21 +132,10 @@ func (a *app) repoMenu(m *ui.Menu) {
 		a.toggleSidebar()
 	}
 	m.Separator()
-	if m.Item(loc.MenuOpenRepo()).Chosen() {
-		showWelcome()
-	}
 	if m.Item(loc.SshMenu()).Chosen() {
 		openSSH()
 	}
-	if recent := recentLocations(); len(recent) > 0 {
-		m.Submenu(loc.MenuRecent(), func(m *ui.Menu) {
-			for _, l := range recent {
-				if m.Item(homeRelative(l)).Chosen() {
-					openRecent(l)
-				}
-			}
-		})
-	}
+
 	if m.Item(loc.MenuInstallCLI()).Chosen() {
 		go installLauncher()
 	}

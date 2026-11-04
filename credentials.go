@@ -54,7 +54,7 @@ func (p *credPrompt) view(c *ui.Context) {
 		p.value = ""
 	}
 	if ui.Modal(c, &p.open, func() {
-		ui.Column(c).Gap(12).Width(420).Children(func() {
+		ui.Column(c).Gap(12).Width(dialogWidth(c, 420)).Children(func() {
 			ui.Text(c, loc.CredTitle()).Bold().FontSize(15)
 			ui.Text(c, p.prompt).TextColor(t.TextMuted).Wrap()
 			in := ui.TextInput(c, &p.value).Label(p.prompt).AutoFocus()

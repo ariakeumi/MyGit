@@ -205,6 +205,10 @@ func remember(host, dir string) {
 	location := git.Location(host, dir)
 	if host == "" {
 		_ = mygo.App.AddRecentDocument(dir)
+		if !slices.Contains(prefs.LocalRepos, dir) {
+			prefs.LocalRepos = append(prefs.LocalRepos, dir)
+			invalidateRepositoryWindows()
+		}
 	} else {
 		prefs.Remotes = first(prefs.Remotes, location, 10)
 	}

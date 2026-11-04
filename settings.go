@@ -40,7 +40,8 @@ type settings struct {
 	HiddenRepos         map[string]bool `json:"hiddenRepos,omitempty"` // the workspace's repositories hidden, by location
 	SidebarW            float32         `json:"sidebarW"`
 	SidebarHidden       bool            `json:"sidebarHidden,omitempty"` // the sidebar folded away, for the room its changes need
-	LogH                float32         `json:"logH"`
+	RepoSidebarHidden   bool            `json:"repoSidebarHidden,omitempty"`
+	LocalRepos          []string        `json:"localRepos"` // added local repository and workspace folders, in order
 	FilesW              float32         `json:"filesW"`
 	StagedPct           float32         `json:"stagedPct"`         // of the changes' room, the staged changes', in percent
 	Proxy               string          `json:"proxy,omitempty"`   // the downloads', "" for the system's
@@ -85,7 +86,7 @@ func (s *settings) setWhitespace(ws git.Whitespace) {
 	s.save()
 }
 
-var prefs = &settings{SidebarW: 300, LogH: 360, FilesW: 260, StagedPct: 30}
+var prefs = &settings{SidebarW: 300, FilesW: 260, StagedPct: 30}
 
 func loadSettings() {
 	dir, err := os.UserConfigDir()

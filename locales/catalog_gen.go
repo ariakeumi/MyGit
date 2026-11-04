@@ -1438,6 +1438,76 @@ func (msgs Messages) CloneURL() string {
 	return Catalog.Format(msgs.locale, "cloneURL", nil)
 }
 
+// CloneGithubRepos says "GitHub repositories"
+// in the language the app shows.
+func CloneGithubRepos() string { return In(i18n.Locale()).CloneGithubRepos() }
+
+// CloneGithubRepos says "GitHub repositories"
+// in the language of msgs.
+func (msgs Messages) CloneGithubRepos() string {
+	return Catalog.Format(msgs.locale, "cloneGithubRepos", nil)
+}
+
+// CloneGithubLoading says "Loading GitHub repositories…"
+// in the language the app shows.
+func CloneGithubLoading() string { return In(i18n.Locale()).CloneGithubLoading() }
+
+// CloneGithubLoading says "Loading GitHub repositories…"
+// in the language of msgs.
+func (msgs Messages) CloneGithubLoading() string {
+	return Catalog.Format(msgs.locale, "cloneGithubLoading", nil)
+}
+
+// CloneGithubFailed says "Could not load GitHub repositories."
+// in the language the app shows.
+func CloneGithubFailed() string { return In(i18n.Locale()).CloneGithubFailed() }
+
+// CloneGithubFailed says "Could not load GitHub repositories."
+// in the language of msgs.
+func (msgs Messages) CloneGithubFailed() string {
+	return Catalog.Format(msgs.locale, "cloneGithubFailed", nil)
+}
+
+// CloneGithubRetry says "Retry"
+// in the language the app shows.
+func CloneGithubRetry() string { return In(i18n.Locale()).CloneGithubRetry() }
+
+// CloneGithubRetry says "Retry"
+// in the language of msgs.
+func (msgs Messages) CloneGithubRetry() string {
+	return Catalog.Format(msgs.locale, "cloneGithubRetry", nil)
+}
+
+// CloneGithubEmpty says "This token has no accessible repositories."
+// in the language the app shows.
+func CloneGithubEmpty() string { return In(i18n.Locale()).CloneGithubEmpty() }
+
+// CloneGithubEmpty says "This token has no accessible repositories."
+// in the language of msgs.
+func (msgs Messages) CloneGithubEmpty() string {
+	return Catalog.Format(msgs.locale, "cloneGithubEmpty", nil)
+}
+
+// CloneGithubFilter says "Filter GitHub repositories"
+// in the language the app shows.
+func CloneGithubFilter() string { return In(i18n.Locale()).CloneGithubFilter() }
+
+// CloneGithubFilter says "Filter GitHub repositories"
+// in the language of msgs.
+func (msgs Messages) CloneGithubFilter() string {
+	return Catalog.Format(msgs.locale, "cloneGithubFilter", nil)
+}
+
+// CloneGithubNoMatch says "No matching repositories."
+// in the language the app shows.
+func CloneGithubNoMatch() string { return In(i18n.Locale()).CloneGithubNoMatch() }
+
+// CloneGithubNoMatch says "No matching repositories."
+// in the language of msgs.
+func (msgs Messages) CloneGithubNoMatch() string {
+	return Catalog.Format(msgs.locale, "cloneGithubNoMatch", nil)
+}
+
 // Change says "Change…"
 // in the language the app shows.
 func Change() string { return In(i18n.Locale()).Change() }
@@ -3326,6 +3396,46 @@ func (msgs Messages) ShowSidebar() string {
 	return Catalog.Format(msgs.locale, "showSidebar", nil)
 }
 
+// LocalRepositories says "Local Repositories"
+// in the language the app shows.
+func LocalRepositories() string { return In(i18n.Locale()).LocalRepositories() }
+
+// LocalRepositories says "Local Repositories"
+// in the language of msgs.
+func (msgs Messages) LocalRepositories() string {
+	return Catalog.Format(msgs.locale, "localRepositories", nil)
+}
+
+// AddLocalRepo says "Add Local Repository"
+// in the language the app shows.
+func AddLocalRepo() string { return In(i18n.Locale()).AddLocalRepo() }
+
+// AddLocalRepo says "Add Local Repository"
+// in the language of msgs.
+func (msgs Messages) AddLocalRepo() string {
+	return Catalog.Format(msgs.locale, "addLocalRepo", nil)
+}
+
+// HideRepoSidebar says "Hide Repository Sidebar"
+// in the language the app shows.
+func HideRepoSidebar() string { return In(i18n.Locale()).HideRepoSidebar() }
+
+// HideRepoSidebar says "Hide Repository Sidebar"
+// in the language of msgs.
+func (msgs Messages) HideRepoSidebar() string {
+	return Catalog.Format(msgs.locale, "hideRepoSidebar", nil)
+}
+
+// ShowRepoSidebar says "Show Repository Sidebar"
+// in the language the app shows.
+func ShowRepoSidebar() string { return In(i18n.Locale()).ShowRepoSidebar() }
+
+// ShowRepoSidebar says "Show Repository Sidebar"
+// in the language of msgs.
+func (msgs Messages) ShowRepoSidebar() string {
+	return Catalog.Format(msgs.locale, "showRepoSidebar", nil)
+}
+
 // ToggleSidebar says "Show or hide the sidebar"
 // in the language the app shows.
 func ToggleSidebar() string { return In(i18n.Locale()).ToggleSidebar() }
@@ -4142,11 +4252,11 @@ func (msgs Messages) PullNoGitHub() string {
 	return Catalog.Format(msgs.locale, "pullNoGitHub", nil)
 }
 
-// PullSignIn says "Sign in to GitHub to review: run gh auth login in a terminal, or set GH_TOKEN."
+// PullSignIn says "Use Sign in to GitHub in the toolbar to review pull requests."
 // in the language the app shows.
 func PullSignIn() string { return In(i18n.Locale()).PullSignIn() }
 
-// PullSignIn says "Sign in to GitHub to review: run gh auth login in a terminal, or set GH_TOKEN."
+// PullSignIn says "Use Sign in to GitHub in the toolbar to review pull requests."
 // in the language of msgs.
 func (msgs Messages) PullSignIn() string {
 	return Catalog.Format(msgs.locale, "pullSignIn", nil)
@@ -5394,4 +5504,394 @@ func DropCommitMessage() string { return In(i18n.Locale()).DropCommitMessage() }
 // in the language of msgs.
 func (msgs Messages) DropCommitMessage() string {
 	return Catalog.Format(msgs.locale, "dropCommitMessage", nil)
+}
+
+// CurrentRepository says "Current repository"
+// in the language the app shows.
+func CurrentRepository() string { return In(i18n.Locale()).CurrentRepository() }
+
+// CurrentRepository says "Current repository"
+// in the language of msgs.
+func (msgs Messages) CurrentRepository() string {
+	return Catalog.Format(msgs.locale, "currentRepository", nil)
+}
+
+// CurrentBranch says "Current branch"
+// in the language the app shows.
+func CurrentBranch() string { return In(i18n.Locale()).CurrentBranch() }
+
+// CurrentBranch says "Current branch"
+// in the language of msgs.
+func (msgs Messages) CurrentBranch() string {
+	return Catalog.Format(msgs.locale, "currentBranch", nil)
+}
+
+// CommitSummary says "Summary (required)"
+// in the language the app shows.
+func CommitSummary() string { return In(i18n.Locale()).CommitSummary() }
+
+// CommitSummary says "Summary (required)"
+// in the language of msgs.
+func (msgs Messages) CommitSummary() string {
+	return Catalog.Format(msgs.locale, "commitSummary", nil)
+}
+
+// CommitDescription says "Description"
+// in the language the app shows.
+func CommitDescription() string { return In(i18n.Locale()).CommitDescription() }
+
+// CommitDescription says "Description"
+// in the language of msgs.
+func (msgs Messages) CommitDescription() string {
+	return Catalog.Format(msgs.locale, "commitDescription", nil)
+}
+
+// CommitToBranch says "Commit to {branch}"
+// in the language the app shows.
+func CommitToBranch(branch string) string { return In(i18n.Locale()).CommitToBranch(branch) }
+
+// CommitToBranch says "Commit to {branch}"
+// in the language of msgs.
+func (msgs Messages) CommitToBranch(branch string) string {
+	return Catalog.Format(msgs.locale, "commitToBranch", map[string]any{"branch": branch})
+}
+
+// SyncOptions says "Sync options"
+// in the language the app shows.
+func SyncOptions() string { return In(i18n.Locale()).SyncOptions() }
+
+// SyncOptions says "Sync options"
+// in the language of msgs.
+func (msgs Messages) SyncOptions() string {
+	return Catalog.Format(msgs.locale, "syncOptions", nil)
+}
+
+// PublishBranch says "Publish branch"
+// in the language the app shows.
+func PublishBranch() string { return In(i18n.Locale()).PublishBranch() }
+
+// PublishBranch says "Publish branch"
+// in the language of msgs.
+func (msgs Messages) PublishBranch() string {
+	return Catalog.Format(msgs.locale, "publishBranch", nil)
+}
+
+// PullRemote says "Pull {remote}"
+// in the language the app shows.
+func PullRemote(remote string) string { return In(i18n.Locale()).PullRemote(remote) }
+
+// PullRemote says "Pull {remote}"
+// in the language of msgs.
+func (msgs Messages) PullRemote(remote string) string {
+	return Catalog.Format(msgs.locale, "pullRemote", map[string]any{"remote": remote})
+}
+
+// PushRemote says "Push {remote}"
+// in the language the app shows.
+func PushRemote(remote string) string { return In(i18n.Locale()).PushRemote(remote) }
+
+// PushRemote says "Push {remote}"
+// in the language of msgs.
+func (msgs Messages) PushRemote(remote string) string {
+	return Catalog.Format(msgs.locale, "pushRemote", map[string]any{"remote": remote})
+}
+
+// ViewOnGitHub says "View on GitHub"
+// in the language the app shows.
+func ViewOnGitHub() string { return In(i18n.Locale()).ViewOnGitHub() }
+
+// ViewOnGitHub says "View on GitHub"
+// in the language of msgs.
+func (msgs Messages) ViewOnGitHub() string {
+	return Catalog.Format(msgs.locale, "viewOnGitHub", nil)
+}
+
+// SelectChange says "Choose a changed file"
+// in the language the app shows.
+func SelectChange() string { return In(i18n.Locale()).SelectChange() }
+
+// SelectChange says "Choose a changed file"
+// in the language of msgs.
+func (msgs Messages) SelectChange() string {
+	return Catalog.Format(msgs.locale, "selectChange", nil)
+}
+
+// SelectChangeHint says "Select a file in Changes to review its diff."
+// in the language the app shows.
+func SelectChangeHint() string { return In(i18n.Locale()).SelectChangeHint() }
+
+// SelectChangeHint says "Select a file in Changes to review its diff."
+// in the language of msgs.
+func (msgs Messages) SelectChangeHint() string {
+	return Catalog.Format(msgs.locale, "selectChangeHint", nil)
+}
+
+// SelectCommit says "Choose a commit"
+// in the language the app shows.
+func SelectCommit() string { return In(i18n.Locale()).SelectCommit() }
+
+// SelectCommit says "Choose a commit"
+// in the language of msgs.
+func (msgs Messages) SelectCommit() string {
+	return Catalog.Format(msgs.locale, "selectCommit", nil)
+}
+
+// SelectCommitHint says "Select a commit in History to see its details and changed files."
+// in the language the app shows.
+func SelectCommitHint() string { return In(i18n.Locale()).SelectCommitHint() }
+
+// SelectCommitHint says "Select a commit in History to see its details and changed files."
+// in the language of msgs.
+func (msgs Messages) SelectCommitHint() string {
+	return Catalog.Format(msgs.locale, "selectCommitHint", nil)
+}
+
+// SelectStash says "Choose a stash"
+// in the language the app shows.
+func SelectStash() string { return In(i18n.Locale()).SelectStash() }
+
+// SelectStash says "Choose a stash"
+// in the language of msgs.
+func (msgs Messages) SelectStash() string {
+	return Catalog.Format(msgs.locale, "selectStash", nil)
+}
+
+// SelectStashHint says "Select a stash to review the files it contains."
+// in the language the app shows.
+func SelectStashHint() string { return In(i18n.Locale()).SelectStashHint() }
+
+// SelectStashHint says "Select a stash to review the files it contains."
+// in the language of msgs.
+func (msgs Messages) SelectStashHint() string {
+	return Catalog.Format(msgs.locale, "selectStashHint", nil)
+}
+
+// NoLocalChanges says "No local changes"
+// in the language the app shows.
+func NoLocalChanges() string { return In(i18n.Locale()).NoLocalChanges() }
+
+// NoLocalChanges says "No local changes"
+// in the language of msgs.
+func (msgs Messages) NoLocalChanges() string {
+	return Catalog.Format(msgs.locale, "noLocalChanges", nil)
+}
+
+// NoLocalChangesHint says "Changes you make in this repository will appear here."
+// in the language the app shows.
+func NoLocalChangesHint() string { return In(i18n.Locale()).NoLocalChangesHint() }
+
+// NoLocalChangesHint says "Changes you make in this repository will appear here."
+// in the language of msgs.
+func (msgs Messages) NoLocalChangesHint() string {
+	return Catalog.Format(msgs.locale, "noLocalChangesHint", nil)
+}
+
+// BranchActions says "Branch actions"
+// in the language the app shows.
+func BranchActions() string { return In(i18n.Locale()).BranchActions() }
+
+// BranchActions says "Branch actions"
+// in the language of msgs.
+func (msgs Messages) BranchActions() string {
+	return Catalog.Format(msgs.locale, "branchActions", nil)
+}
+
+// GithubSignIn says "Sign in to GitHub"
+// in the language the app shows.
+func GithubSignIn() string { return In(i18n.Locale()).GithubSignIn() }
+
+// GithubSignIn says "Sign in to GitHub"
+// in the language of msgs.
+func (msgs Messages) GithubSignIn() string {
+	return Catalog.Format(msgs.locale, "githubSignIn", nil)
+}
+
+// GithubAccount says "GitHub account"
+// in the language the app shows.
+func GithubAccount() string { return In(i18n.Locale()).GithubAccount() }
+
+// GithubAccount says "GitHub account"
+// in the language of msgs.
+func (msgs Messages) GithubAccount() string {
+	return Catalog.Format(msgs.locale, "githubAccount", nil)
+}
+
+// GithubSignedIn says "Signed in as @{login}"
+// in the language the app shows.
+func GithubSignedIn(login string) string { return In(i18n.Locale()).GithubSignedIn(login) }
+
+// GithubSignedIn says "Signed in as @{login}"
+// in the language of msgs.
+func (msgs Messages) GithubSignedIn(login string) string {
+	return Catalog.Format(msgs.locale, "githubSignedIn", map[string]any{"login": login})
+}
+
+// GithubExternalAccount says "This account uses credentials from GitHub CLI or the environment."
+// in the language the app shows.
+func GithubExternalAccount() string { return In(i18n.Locale()).GithubExternalAccount() }
+
+// GithubExternalAccount says "This account uses credentials from GitHub CLI or the environment."
+// in the language of msgs.
+func (msgs Messages) GithubExternalAccount() string {
+	return Catalog.Format(msgs.locale, "githubExternalAccount", nil)
+}
+
+// GithubBrowserHint says "Use GitHub CLI (gh) to authorize in your browser."
+// in the language the app shows.
+func GithubBrowserHint() string { return In(i18n.Locale()).GithubBrowserHint() }
+
+// GithubBrowserHint says "Use GitHub CLI (gh) to authorize in your browser."
+// in the language of msgs.
+func (msgs Messages) GithubBrowserHint() string {
+	return Catalog.Format(msgs.locale, "githubBrowserHint", nil)
+}
+
+// GithubBrowserSignIn says "Sign in with browser"
+// in the language the app shows.
+func GithubBrowserSignIn() string { return In(i18n.Locale()).GithubBrowserSignIn() }
+
+// GithubBrowserSignIn says "Sign in with browser"
+// in the language of msgs.
+func (msgs Messages) GithubBrowserSignIn() string {
+	return Catalog.Format(msgs.locale, "githubBrowserSignIn", nil)
+}
+
+// GithubCliMissing says "GitHub CLI (gh) was not found. Install it for browser sign-in, or use a personal access token below."
+// in the language the app shows.
+func GithubCliMissing() string { return In(i18n.Locale()).GithubCliMissing() }
+
+// GithubCliMissing says "GitHub CLI (gh) was not found. Install it for browser sign-in, or use a personal access token below."
+// in the language of msgs.
+func (msgs Messages) GithubCliMissing() string {
+	return Catalog.Format(msgs.locale, "githubCliMissing", nil)
+}
+
+// GithubInstallCLI says "Get GitHub CLI"
+// in the language the app shows.
+func GithubInstallCLI() string { return In(i18n.Locale()).GithubInstallCLI() }
+
+// GithubInstallCLI says "Get GitHub CLI"
+// in the language of msgs.
+func (msgs Messages) GithubInstallCLI() string {
+	return Catalog.Format(msgs.locale, "githubInstallCLI", nil)
+}
+
+// GithubDeviceHint says "Copy the one-time code, then open GitHub and paste it to authorize MyGit through GitHub CLI."
+// in the language the app shows.
+func GithubDeviceHint() string { return In(i18n.Locale()).GithubDeviceHint() }
+
+// GithubDeviceHint says "Copy the one-time code, then open GitHub and paste it to authorize MyGit through GitHub CLI."
+// in the language of msgs.
+func (msgs Messages) GithubDeviceHint() string {
+	return Catalog.Format(msgs.locale, "githubDeviceHint", nil)
+}
+
+// GithubCopyCode says "Copy code"
+// in the language the app shows.
+func GithubCopyCode() string { return In(i18n.Locale()).GithubCopyCode() }
+
+// GithubCopyCode says "Copy code"
+// in the language of msgs.
+func (msgs Messages) GithubCopyCode() string {
+	return Catalog.Format(msgs.locale, "githubCopyCode", nil)
+}
+
+// GithubOpenBrowser says "Open GitHub in browser"
+// in the language the app shows.
+func GithubOpenBrowser() string { return In(i18n.Locale()).GithubOpenBrowser() }
+
+// GithubOpenBrowser says "Open GitHub in browser"
+// in the language of msgs.
+func (msgs Messages) GithubOpenBrowser() string {
+	return Catalog.Format(msgs.locale, "githubOpenBrowser", nil)
+}
+
+// GithubSigningIn says "Waiting for GitHub…"
+// in the language the app shows.
+func GithubSigningIn() string { return In(i18n.Locale()).GithubSigningIn() }
+
+// GithubSigningIn says "Waiting for GitHub…"
+// in the language of msgs.
+func (msgs Messages) GithubSigningIn() string {
+	return Catalog.Format(msgs.locale, "githubSigningIn", nil)
+}
+
+// GithubBrowserFailed says "Browser sign-in could not complete. Try again or sign in with a personal access token."
+// in the language the app shows.
+func GithubBrowserFailed() string { return In(i18n.Locale()).GithubBrowserFailed() }
+
+// GithubBrowserFailed says "Browser sign-in could not complete. Try again or sign in with a personal access token."
+// in the language of msgs.
+func (msgs Messages) GithubBrowserFailed() string {
+	return Catalog.Format(msgs.locale, "githubBrowserFailed", nil)
+}
+
+// GithubTokenHint says "You can also sign in with a personal access token. MyGit saves it in your system credential store."
+// in the language the app shows.
+func GithubTokenHint() string { return In(i18n.Locale()).GithubTokenHint() }
+
+// GithubTokenHint says "You can also sign in with a personal access token. MyGit saves it in your system credential store."
+// in the language of msgs.
+func (msgs Messages) GithubTokenHint() string {
+	return Catalog.Format(msgs.locale, "githubTokenHint", nil)
+}
+
+// GithubToken says "Personal access token"
+// in the language the app shows.
+func GithubToken() string { return In(i18n.Locale()).GithubToken() }
+
+// GithubToken says "Personal access token"
+// in the language of msgs.
+func (msgs Messages) GithubToken() string {
+	return Catalog.Format(msgs.locale, "githubToken", nil)
+}
+
+// GithubCreateToken says "Manage GitHub tokens"
+// in the language the app shows.
+func GithubCreateToken() string { return In(i18n.Locale()).GithubCreateToken() }
+
+// GithubCreateToken says "Manage GitHub tokens"
+// in the language of msgs.
+func (msgs Messages) GithubCreateToken() string {
+	return Catalog.Format(msgs.locale, "githubCreateToken", nil)
+}
+
+// GithubUseToken says "Sign in with token"
+// in the language the app shows.
+func GithubUseToken() string { return In(i18n.Locale()).GithubUseToken() }
+
+// GithubUseToken says "Sign in with token"
+// in the language of msgs.
+func (msgs Messages) GithubUseToken() string {
+	return Catalog.Format(msgs.locale, "githubUseToken", nil)
+}
+
+// GithubTokenFailed says "The token could not be verified or saved. Check the token and your system credential store."
+// in the language the app shows.
+func GithubTokenFailed() string { return In(i18n.Locale()).GithubTokenFailed() }
+
+// GithubTokenFailed says "The token could not be verified or saved. Check the token and your system credential store."
+// in the language of msgs.
+func (msgs Messages) GithubTokenFailed() string {
+	return Catalog.Format(msgs.locale, "githubTokenFailed", nil)
+}
+
+// GithubForgetToken says "Remove saved token"
+// in the language the app shows.
+func GithubForgetToken() string { return In(i18n.Locale()).GithubForgetToken() }
+
+// GithubForgetToken says "Remove saved token"
+// in the language of msgs.
+func (msgs Messages) GithubForgetToken() string {
+	return Catalog.Format(msgs.locale, "githubForgetToken", nil)
+}
+
+// GithubForgetFailed says "Could not remove the saved token from your system credential store."
+// in the language the app shows.
+func GithubForgetFailed() string { return In(i18n.Locale()).GithubForgetFailed() }
+
+// GithubForgetFailed says "Could not remove the saved token from your system credential store."
+// in the language of msgs.
+func (msgs Messages) GithubForgetFailed() string {
+	return Catalog.Format(msgs.locale, "githubForgetFailed", nil)
 }

@@ -11,8 +11,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -25,6 +23,7 @@ type Client struct {
 	Token       string
 	BaseURL     string // https://api.github.com, else a test's server
 	HTTP        *http.Client
+	useAccount  bool
 }
 
 // remoteRE takes a GitHub remote's owner and repository from its URL, as
@@ -40,28 +39,20 @@ func ParseRemote(url string) (owner, repo string, ok bool) {
 	return m[1], m[2], true
 }
 
-// Token is the user's GitHub token: $GH_TOKEN, $GITHUB_TOKEN, else the
-// GitHub CLI's, as gh auth login keeps it; "" when there is none.
-func Token(ctx context.Context) string {
-	for _, k := range []string{"GH_TOKEN", "GITHUB_TOKEN"} {
-		if t := strings.TrimSpace(os.Getenv(k)); t != "" {
-			return t
-		}
-	}
-	gh, err := exec.LookPath("gh")
-	if err != nil {
-		return ""
-	}
-	out, err := exec.CommandContext(ctx, gh, "auth", "token", "--hostname", "github.com").Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
+// New is a client of owner/repo's API with the user's token.
+func New(_ context.Context, owner, repo string) *Client {
+	return &Client{Owner: owner, Repo: repo, useAccount: true}
 }
 
-// New is a client of owner/repo's API with the user's token.
-func New(ctx context.Context, owner, repo string) *Client {
-	return &Client{Owner: owner, Repo: repo, Token: Token(ctx)}
+// withCredentials reads the current account for a request without changing
+// the client held by open reviews or their concurrent requests.
+func (c *Client) withCredentials(ctx context.Context) *Client {
+	if !c.useAccount {
+		return c
+	}
+	client := *c
+	client.Token, client.useAccount = Token(ctx), false
+	return &client
 }
 
 // ErrNoToken says reviewing needs the user to sign in.
@@ -156,6 +147,7 @@ func (c *Client) Pull(ctx context.Context, n int) (Pull, error) {
 // Threads reads a pull request's review comments as threads, in the order
 // they began, with whether each is resolved when there is a token.
 func (c *Client) Threads(ctx context.Context, n int) ([]Thread, error) {
+	c = c.withCredentials(ctx)
 	var all []Comment
 	for page := 1; ; page++ {
 		var batch []Comment
@@ -301,6 +293,7 @@ func (e *Error) Error() string {
 }
 
 func (c *Client) do(ctx context.Context, method, path string, in, out any) error {
+	c = c.withCredentials(ctx)
 	var body io.Reader
 	if in != nil {
 		b, err := json.Marshal(in)
@@ -360,9 +353,6 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) error
 }
 
 func (c *Client) graphql(ctx context.Context, query string, vars map[string]any, out any) error {
-	if c.Token == "" {
-		return ErrNoToken
-	}
 	var resp struct {
 		Data   json.RawMessage `json:"data"`
 		Errors []struct {

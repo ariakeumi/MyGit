@@ -88,11 +88,12 @@ func TestScenarioUnsavedEditThenAnotherFile(t *testing.T) {
 	t.Run("a commit", func(t *testing.T) {
 		tt := setup(t)
 		tt.click(t, "取消")
-		tt.click(t, "Write main")
-		if !tt.a.confirm.open || tt.a.detail.commit != nil {
-			t.Fatal("showed a commit without asking")
+		tt.click(t, loc.History())
+		if !tt.a.confirm.open || tt.a.leftTab != changesTab || tt.a.detail.commit != nil {
+			t.Fatal("left the edited file without asking")
 		}
 		tt.click(t, "不保存")
+		tt.click(t, "Write main")
 		if c := tt.a.detail.commit; c == nil || c.Subject != "Write main" {
 			t.Fatalf("commit shown %+v", c)
 		}
@@ -335,12 +336,13 @@ func TestScenarioEmptyRepository(t *testing.T) {
 
 func TestScenarioDetachedHead(t *testing.T) {
 	tt := newTester(t)
+	tt.click(t, loc.History())
 	tt.click(t, "Write main")
 	tt.a.run("checkout", func(ctx context.Context) error {
 		return tt.a.repo.CheckoutDetached(ctx, tt.a.commits[tt.a.logSel].Hash)
 	}, nil)
 	tt.settle()
-	if tt.a.status.Branch != "" || tt.a.errMsg != "" || !tt.HasText("⎇ （游离 HEAD） ▾") {
+	if tt.a.status.Branch != "" || tt.a.errMsg != "" || !tt.HasText(loc.Detached()) {
 		t.Fatalf("branch %q, error %q: %q", tt.a.status.Branch, tt.a.errMsg, tt.Texts())
 	}
 	// Committing on it, then switching back to main, works.
@@ -363,6 +365,7 @@ func TestScenarioDetachedHead(t *testing.T) {
 func TestScenarioPaletteKeys(t *testing.T) {
 	tt := newTester(t)
 	tt.commitFiles(t, "Three", map[string]string{"x/a.go": "a\n", "x/b.go": "b\n", "x/c.go": "c\n"})
+	tt.click(t, loc.History())
 	tt.click(t, "Three")
 	tt.Key(ui.Cmd, ui.KeyP)
 	tt.Frame()
@@ -579,6 +582,7 @@ func TestScenarioStepAcrossFiles(t *testing.T) {
 	tt.settle()
 	walk([]bool{false, false, false}, []place{{"b.txt", 1, 0}, {"b.txt", 1, 0}, {"b.txt", 1, 0}})
 
+	tt.click(t, loc.History())
 	tt.click(t, "Change both")
 	walk(steps, want)
 }
@@ -624,10 +628,11 @@ func TestScenarioFilterChanges(t *testing.T) {
 		t.Fatalf("no header of the changes: %q", tt.Texts())
 	}
 	before := tt.a.stagedPct
+	x := head.X + head.W/2
 	y := head.Y - 6 // the split's line, just above the header
-	tt.Press(100, y)
-	tt.Move(100, y+120)
-	tt.Release(100, y+120)
+	tt.Press(x, y)
+	tt.Move(x, y+120)
+	tt.Release(x, y+120)
 	tt.Frame()
 	if tt.a.stagedPct <= before {
 		t.Fatalf("dragged down, the staged changes take %v%%, from %v%%", tt.a.stagedPct, before)
