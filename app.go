@@ -63,6 +63,7 @@ type app struct {
 	leftTab                  int // Changes, History or Stash
 	staged                   []git.Change
 	unstaged                 []git.Change
+	commitExcluded           map[string]bool // working tree changes unchecked in the commit list
 	genMarked                map[string]bool // the changes .gitattributes marks generated
 	stagedList, unstagedList ui.ListState
 	stagedSel, unstagedSel   int
@@ -367,6 +368,17 @@ func (a *app) refresh() {
 }
 
 func (a *app) setStatus(st git.Status) {
+	if st.Branch != a.status.Branch {
+		clear(a.commitExcluded)
+	} else if len(a.commitExcluded) > 0 {
+		remaining := make(map[string]bool)
+		for _, ch := range st.Changes {
+			if a.commitExcluded[ch.Path] {
+				remaining[ch.Path] = true
+			}
+		}
+		a.commitExcluded = remaining
+	}
 	a.status = st
 	// The changes chosen stay chosen by their paths, as rows come and go;
 	// one gone leaves its list without a choice, so that choosing a row
@@ -827,7 +839,7 @@ func (a *app) unstage(c git.Change) {
 	if c.OldPath != "" {
 		paths = append(paths, c.OldPath) // a rename is staged as both
 	}
-	a.run(loc.OpUnstage(), func(ctx context.Context) error { return a.repo.Unstage(ctx, paths...) }, nil)
+	a.unstagePaths(paths...)
 }
 
 // trash moves a file to the trash.
@@ -964,11 +976,46 @@ func (a *app) unstagePaths(paths ...string) {
 	if len(paths) == 0 {
 		return
 	}
-	a.run(loc.OpUnstage(), func(ctx context.Context) error { return a.repo.Unstage(ctx, paths...) }, nil)
+	a.run(loc.OpUnstage(), func(ctx context.Context) error { return a.repo.Unstage(ctx, paths...) }, func() {
+		for _, file := range paths {
+			a.includeInCommit(file, false)
+		}
+	})
+}
+
+func (a *app) includeInCommit(file string, include bool) {
+	if include {
+		delete(a.commitExcluded, file)
+		return
+	}
+	if a.commitExcluded == nil {
+		a.commitExcluded = make(map[string]bool)
+	}
+	a.commitExcluded[file] = true
+}
+
+func (a *app) canIncludeWorkingChange(ch git.Change) bool {
+	// When a file is already partially staged, keep the index's selection.
+	return a.op == git.NoOperation && !ch.Conflict && ch.Staged == 0
+}
+
+func (a *app) includeWorkingChange(ch git.Change) bool {
+	return a.canIncludeWorkingChange(ch) && !a.commitExcluded[ch.Path]
+}
+
+func (a *app) commitFileCount() int {
+	n := len(a.staged)
+	for _, ch := range a.unstaged {
+		if a.includeWorkingChange(ch) {
+			n++
+		}
+	}
+	return n
 }
 
 func (a *app) canCommit() bool {
-	return a.busy == "" && strings.TrimSpace(a.message) != "" && (len(a.staged) > 0 || a.amend)
+	return a.busy == "" && strings.TrimSpace(a.message) != "" &&
+		(len(a.staged) > 0 || a.amend || slices.ContainsFunc(a.unstaged, a.includeWorkingChange))
 }
 
 func (a *app) commit() {
@@ -979,7 +1026,23 @@ func (a *app) commit() {
 		return
 	}
 	msg, amend := a.commitMessage(), a.amend
-	a.run(loc.OpCommit(), func(ctx context.Context) error { return a.repo.Commit(ctx, msg, amend) }, func() {
+	var paths, partlyStaged []string
+	for _, ch := range a.unstaged {
+		if a.includeWorkingChange(ch) {
+			paths = append(paths, ch.Path)
+		} else if ch.Staged != 0 {
+			partlyStaged = append(partlyStaged, ch.Path)
+		}
+	}
+	a.run(loc.OpCommit(), func(ctx context.Context) error {
+		if err := a.repo.StageForCommit(ctx, paths); err != nil {
+			return err
+		}
+		return a.repo.Commit(ctx, msg, amend)
+	}, func() {
+		for _, file := range partlyStaged {
+			a.includeInCommit(file, false)
+		}
 		a.message, a.description, a.amend, a.recall = "", "", false, 0
 	})
 }

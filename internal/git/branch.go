@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -34,7 +35,7 @@ const (
 	PullFastForward PullMode = "--ff-only"   // only when no merge is needed
 	PullRebase      PullMode = "--rebase"    // replay the branch's commits on them
 	PullMerge       PullMode = "--no-rebase" // merge them
-	PullConfigured  PullMode = ""            // as git is set to, pull.rebase
+	PullConfigured  PullMode = ""            // honor Git config, allowing merges by default
 )
 
 // Pull brings the upstream's commits in, stashing the changes not
@@ -44,12 +45,40 @@ func (r *Repo) Pull(ctx context.Context, mode PullMode) error {
 	args := []string{"pull"}
 	if mode != PullConfigured {
 		args = append(args, string(mode))
+	} else if _, err := r.Git(ctx, "config", "--get", "pull.ff"); err != nil && ctx.Err() == nil {
+		// Like GitHub Desktop, allow a fast-forward or merge when pull.ff
+		// is unset. Git still honors pull.rebase and branch.<name>.rebase.
+		args = append(args, "--ff")
 	}
 	_, err := r.Git(ctx, append(args, "--autostash")...)
 	if err != nil && strings.Contains(err.Error(), "autostash") {
 		_, err = r.Git(ctx, args...)
 	}
 	return err
+}
+
+// PushBranch sends only the specified local branch to its tracking branch.
+// The boolean reports a rejection caused by commits missing locally.
+func (r *Repo) PushBranch(ctx context.Context, remote string, st Status) (bool, error) {
+	args := []string{"push", "--porcelain", "--no-mirror"}
+	source := "refs/heads/" + st.Branch
+	target := source
+	if st.Upstream == "" {
+		args = append(args, "--set-upstream")
+	} else {
+		out, err := r.Git(ctx, "for-each-ref", "--format=%(upstream:remotename)%00%(upstream:remoteref)", "--", source)
+		if err != nil {
+			return false, err
+		}
+		name, ref, ok := strings.Cut(strings.TrimSuffix(out, "\n"), "\x00")
+		if !ok || name != remote || !strings.HasPrefix(ref, "refs/heads/") {
+			return false, fmt.Errorf("no tracking branch on %s for %s", remote, st.Branch)
+		}
+		target = ref
+	}
+	out, err := r.Git(ctx, append(args, "--", remote, source+":"+target)...)
+	return err != nil && (strings.Contains(out, "[rejected] (fetch first)") ||
+		strings.Contains(out, "[rejected] (non-fast-forward)")), err
 }
 
 // Push sends the branch to its upstream, or to origin under its own name,

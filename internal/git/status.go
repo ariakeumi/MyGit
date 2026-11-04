@@ -146,6 +146,17 @@ func (r *Repo) Stage(ctx context.Context, paths ...string) error {
 	})
 }
 
+// StageForCommit adds the selected files in one index update. A literal,
+// NUL-separated pathspec keeps filenames out of the command line.
+func (r *Repo) StageForCommit(ctx context.Context, paths []string) error {
+	if len(paths) == 0 {
+		return nil
+	}
+	_, err := git(ctx, r.run, r.Dir, strings.Join(paths, "\x00")+"\x00", nil,
+		"--literal-pathspecs", "add", "--all", "--pathspec-from-file=-", "--pathspec-file-nul")
+	return err
+}
+
 // Unstage takes the files' changes out of the index, leaving the working
 // tree as it is.
 func (r *Repo) Unstage(ctx context.Context, paths ...string) error {

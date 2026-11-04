@@ -92,6 +92,31 @@ func (a *app) revealCommit(hash string) {
 	a.errMsg = loc.ErrNotInHistory(hash[:8])
 }
 
+// pushBranch is the toolbar's normal push. The sync menu opens the preview.
+func (a *app) pushBranch() {
+	st, remote := a.status, a.syncRemote()
+	if remote == "" || st.Branch == "" || !st.HasHEAD {
+		return
+	}
+	rejected := false
+	a.run(loc.Push(), func(ctx context.Context) error {
+		var err error
+		rejected, err = a.repo.PushBranch(ctx, remote, st)
+		if rejected {
+			return nil
+		}
+		return err
+	}, func() {
+		if rejected {
+			a.ask(loc.PushRemoteAheadTitle(), loc.PushRemoteAheadMessage(), loc.Fetch(), func() {
+				a.run(loc.OpFetchRemote(remote), func(ctx context.Context) error {
+					return a.repo.FetchRemote(ctx, remote)
+				}, nil)
+			})
+		}
+	})
+}
+
 // pushPlan is the push dialog: the commits a push would send.
 type pushPlan struct {
 	open    bool

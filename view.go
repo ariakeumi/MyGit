@@ -182,7 +182,7 @@ func (a *app) commitForm(c *ui.Context) {
 			label = loc.CommitToBranch(a.status.Branch)
 		}
 		tip := shortcut("↩")
-		if n := len(a.staged); n > 0 {
+		if n := a.commitFileCount(); n > 0 {
 			tip = loc.CommitFiles(n) + " · " + tip
 		}
 		ui.PrimaryButton(c, label).FillWidth().Disabled(!a.canCommit()).Tooltip(tip).OnClick(a.commit)
@@ -237,6 +237,9 @@ func (a *app) changeSection(c *ui.Context, title string, staged, fill bool) {
 		head.BorderWidth(1, 0, 0, 0).BorderColor(t.Border)
 	}
 	head.Children(func() {
+		if !staged {
+			a.workingSelectionHeader(c, changes, items)
+		}
 		ui.Text(c, title).Bold().TextColor(t.TextMuted)
 		count := fmt.Sprint(len(changes))
 		if rows != nil {
@@ -301,8 +304,7 @@ func (a *app) changeSection(c *ui.Context, title string, staged, fill bool) {
 		// As VS Code's: the name, its folder, the actions while the
 		// pointer is over the row, and the change's letter at the end;
 		// in a tree, the name alone, in from its folder's. A check box
-		// leads the row, as IDEA's commit dialog: checked when the
-		// change is staged, so a click stages or unstages it.
+		// leads the row and shows whether it will be committed.
 		indent := float32(8)
 		if tree != nil {
 			indent = 6 + float32(tree[i].depth)*treeIndent
@@ -312,12 +314,14 @@ func (a *app) changeSection(c *ui.Context, title string, staged, fill bool) {
 			row.TextColor(t.AccentText)
 		}
 		row.Children(func() {
-			label := loc.StageFile(ch.Path)
+			label := loc.IncludeCommitFile(ch.Path)
 			if staged {
 				label = loc.UnstageFile(ch.Path)
 			}
-			if changeCheckbox(c, staged, chosen, label) {
-				a.toggleStage(ch, staged)
+			checked := staged || a.includeWorkingChange(ch)
+			enabled := a.busy == "" && (staged || a.canIncludeWorkingChange(ch))
+			if changeCheckbox(c, checked, chosen, enabled, label) {
+				a.toggleCommitFile(ch, staged)
 			}
 			code := ch.Work
 			if staged {
@@ -386,10 +390,9 @@ func (a *app) changeSection(c *ui.Context, title string, staged, fill bool) {
 		// One change is chosen at a time, of both lists.
 		a.chooseChange(at(*row), staged)
 	} else if l.Submitted() && *row >= 0 && *row < n {
-		a.toggleStage(changes[at(*row)], staged)
+		a.toggleCommitFile(changes[at(*row)], staged)
 	}
-	// The keys of VS Code's and Finder's lists: space stages or unstages
-	// the change chosen, delete discards it, asking first.
+	// Space toggles inclusion in the commit. Delete asks to discard the change.
 	chosen := func(fn func(git.Change)) func() {
 		return func() {
 			if *sel >= 0 && *sel < len(changes) && a.busy == "" {
@@ -397,7 +400,7 @@ func (a *app) changeSection(c *ui.Context, title string, staged, fill bool) {
 			}
 		}
 	}
-	list.Handle.OnShortcut(c, 0, ui.KeySpace, chosen(func(ch git.Change) { a.toggleStage(ch, staged) }))
+	list.Handle.OnShortcut(c, 0, ui.KeySpace, chosen(func(ch git.Change) { a.toggleCommitFile(ch, staged) }))
 	if !staged {
 		discard := chosen(func(ch git.Change) {
 			if !ch.Conflict {
@@ -409,15 +412,31 @@ func (a *app) changeSection(c *ui.Context, title string, staged, fill bool) {
 	}
 }
 
-// changeCheckbox is the check box that leads a change's row: checked
-// when the change is staged, as the commit dialog of IDEA checks the
-// changes to commit, and a click stages it or unstages it. A chosen row
-// is white on the accent, so the box turns with it.
-func changeCheckbox(c *ui.Context, staged, chosen bool, label string) bool {
+func (a *app) workingSelectionHeader(c *ui.Context, changes []git.Change, items []int) {
+	total, included := 0, 0
+	for _, i := range items {
+		ch := changes[i]
+		if a.canIncludeWorkingChange(ch) {
+			total++
+			if a.includeWorkingChange(ch) {
+				included++
+			}
+		}
+	}
+	if total == 0 || !changeCheckbox(c.Key("include-working"), included == total, false, a.busy == "", loc.IncludeAllCommitFiles()) {
+		return
+	}
+	for _, i := range items {
+		if ch := changes[i]; a.canIncludeWorkingChange(ch) {
+			a.includeInCommit(ch.Path, included != total)
+		}
+	}
+}
+
+func changeCheckbox(c *ui.Context, on, chosen, enabled bool, label string) bool {
 	t := c.Theme()
-	on := staged // the click flips it; the change itself is staged after
 	box := ui.CheckboxBase(c, &on).Size(14, 14).Radius(3).Center().Shrink(0).
-		Label(label).Tooltip(label).Cursor(ui.CursorPointer)
+		Label(label).Tooltip(label).Cursor(ui.CursorPointer).Disabled(!enabled)
 	mark, ink := t.Accent, t.AccentText
 	if chosen {
 		mark, ink = t.AccentText, t.Accent
@@ -436,6 +455,17 @@ func changeCheckbox(c *ui.Context, staged, chosen bool, label string) bool {
 		}
 	})
 	return box.Changed()
+}
+
+func (a *app) toggleCommitFile(ch git.Change, staged bool) {
+	if a.busy != "" {
+		return
+	}
+	if staged {
+		a.unstage(ch)
+	} else if a.canIncludeWorkingChange(ch) {
+		a.includeInCommit(ch.Path, !a.includeWorkingChange(ch))
+	}
 }
 
 func (a *app) toggleStage(ch git.Change, staged bool) {

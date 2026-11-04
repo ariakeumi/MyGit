@@ -259,6 +259,11 @@
   "renameMenu": "Rename…",
   "stage": "Stage",
   "unstage": "Unstage",
+  "includeCommitFile": "Include {file} in commit",
+  "includeAllCommitFiles": "Include all shown working tree changes in commit",
+  "pushRemoteAheadTitle": "New commits on remote",
+  "pushRemoteAheadMessage": "Fetch the latest commits from the remote, then pull before pushing again.",
+  "@includeCommitFile": {"placeholders": {"file": {"type": "String"}}},
   "stageFile": "Stage {file}",
   "@stageFile": {
     "placeholders": {

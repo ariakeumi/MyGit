@@ -234,15 +234,12 @@ func (a *app) syncButton(c *ui.Context) {
 	case remote == "":
 		subtitle = loc.RemotesNone()
 	case st.Branch != "" && st.Upstream == "" && st.HasHEAD:
-		label, glyph, action = loc.PublishBranch(), "up", a.openPush
+		label, glyph, action = loc.PublishBranch(), "up", a.pushBranch
 		subtitle = remote + "/" + st.Branch
 	case st.Upstream != "" && st.Behind > 0:
-		label, glyph, action = loc.PullRemote(remote), "chevron-down", func() { pull(git.PullFastForward) }
-		if st.Ahead > 0 {
-			action = func() { pull(git.PullConfigured) }
-		}
+		label, glyph, action = loc.PullRemote(remote), "chevron-down", func() { pull(git.PullConfigured) }
 	case st.Upstream != "" && st.Ahead > 0:
-		label, glyph, action = loc.PushRemote(remote), "up", a.openPush
+		label, glyph, action = loc.PushRemote(remote), "up", a.pushBranch
 	default:
 		label, glyph, action = loc.FetchRemote(remote), "refresh", func() { fetch(remote) }
 		subtitle = remote

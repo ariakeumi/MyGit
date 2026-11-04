@@ -183,7 +183,15 @@ func (a *app) applyLines(chosen map[patch.Line]bool, act lineAction) {
 	case lineStage:
 		apply(loc.OpStage(), true, false)
 	case lineUnstage:
-		apply(loc.OpUnstage(), true, true)
+		ch := *a.detail.change
+		a.run(loc.OpUnstage(), func(ctx context.Context) error {
+			return a.repo.Apply(ctx, text, true, true)
+		}, func() {
+			a.includeInCommit(ch.Path, false)
+			if ch.OldPath != "" {
+				a.includeInCommit(ch.OldPath, false)
+			}
+		})
 	case lineDiscard:
 		a.ask(loc.DiscardLinesTitle(), loc.DiscardLinesMessage(), loc.Discard(), func() { apply(loc.OpDiscard(), false, true) })
 	}

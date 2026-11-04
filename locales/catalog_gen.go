@@ -706,6 +706,46 @@ func (msgs Messages) Unstage() string {
 	return Catalog.Format(msgs.locale, "unstage", nil)
 }
 
+// IncludeCommitFile says "Include {file} in commit"
+// in the language the app shows.
+func IncludeCommitFile(file string) string { return In(i18n.Locale()).IncludeCommitFile(file) }
+
+// IncludeCommitFile says "Include {file} in commit"
+// in the language of msgs.
+func (msgs Messages) IncludeCommitFile(file string) string {
+	return Catalog.Format(msgs.locale, "includeCommitFile", map[string]any{"file": file})
+}
+
+// IncludeAllCommitFiles says "Include all shown working tree changes in commit"
+// in the language the app shows.
+func IncludeAllCommitFiles() string { return In(i18n.Locale()).IncludeAllCommitFiles() }
+
+// IncludeAllCommitFiles says "Include all shown working tree changes in commit"
+// in the language of msgs.
+func (msgs Messages) IncludeAllCommitFiles() string {
+	return Catalog.Format(msgs.locale, "includeAllCommitFiles", nil)
+}
+
+// PushRemoteAheadTitle says "New commits on remote"
+// in the language the app shows.
+func PushRemoteAheadTitle() string { return In(i18n.Locale()).PushRemoteAheadTitle() }
+
+// PushRemoteAheadTitle says "New commits on remote"
+// in the language of msgs.
+func (msgs Messages) PushRemoteAheadTitle() string {
+	return Catalog.Format(msgs.locale, "pushRemoteAheadTitle", nil)
+}
+
+// PushRemoteAheadMessage says "Fetch the latest commits from the remote, then pull before pushing again."
+// in the language the app shows.
+func PushRemoteAheadMessage() string { return In(i18n.Locale()).PushRemoteAheadMessage() }
+
+// PushRemoteAheadMessage says "Fetch the latest commits from the remote, then pull before pushing again."
+// in the language of msgs.
+func (msgs Messages) PushRemoteAheadMessage() string {
+	return Catalog.Format(msgs.locale, "pushRemoteAheadMessage", nil)
+}
+
 // StageFile says "Stage {file}"
 // in the language the app shows.
 func StageFile(file string) string { return In(i18n.Locale()).StageFile(file) }

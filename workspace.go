@@ -500,8 +500,9 @@ func counts(st git.Status) string {
 // sync brings the upstream's commits in, as git is set to pull, then
 // sends the branch's, as VS Code's Sync Changes does.
 func (a *app) sync() {
+	behind := a.status.Behind
 	a.runPull(loc.OpSync(), func(ctx context.Context) error {
-		if a.status.Behind > 0 {
+		if behind > 0 {
 			if err := a.repo.Pull(ctx, git.PullConfigured); err != nil {
 				return err
 			}

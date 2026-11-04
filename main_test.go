@@ -149,18 +149,28 @@ func TestHistory(t *testing.T) {
 	}
 }
 
-func TestChangeCheckboxStages(t *testing.T) {
+func TestCommitCheckedChanges(t *testing.T) {
 	tt := newTester(t)
-	if len(tt.a.unstaged) != 1 {
-		t.Fatalf("unstaged %v", tt.a.unstaged)
+	tt.write(t, map[string]string{"other.txt": "leave out\n"})
+	tt.click(t, loc.CommitSummary())
+	tt.Type("Take notes")
+	tt.click(t, loc.IncludeAllCommitFiles())
+	if tt.a.canCommit() {
+		t.Fatal("commit enabled with every file unchecked")
 	}
-	tt.click(t, loc.StageFile("notes.txt"))
-	if len(tt.a.staged) != 1 || tt.a.staged[0].Path != "notes.txt" || len(tt.a.unstaged) != 0 {
-		t.Fatalf("after its box: staged %v, unstaged %v", tt.a.staged, tt.a.unstaged)
+	tt.click(t, loc.IncludeAllCommitFiles())
+	tt.click(t, loc.IncludeCommitFile("other.txt"))
+	if len(tt.a.staged) != 0 {
+		t.Fatalf("selection changed the index: %v", tt.a.staged)
 	}
-	tt.click(t, loc.UnstageFile("notes.txt"))
-	if len(tt.a.staged) != 0 || len(tt.a.unstaged) != 1 {
-		t.Fatalf("after its box again: staged %v, unstaged %v", tt.a.staged, tt.a.unstaged)
+	tt.click(t, loc.CommitToBranch("main"))
+	ctx := context.Background()
+	files, err := tt.a.repo.Git(ctx, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD")
+	if err != nil || files != "notes.txt\n" {
+		t.Fatalf("committed files %q, err %v, UI error %q", files, err, tt.a.errMsg)
+	}
+	if len(tt.a.unstaged) != 1 || tt.a.unstaged[0].Path != "other.txt" || tt.a.includeWorkingChange(tt.a.unstaged[0]) {
+		t.Fatalf("remaining changes %+v", tt.a.unstaged)
 	}
 }
 
@@ -743,7 +753,7 @@ func TestBlameAndParents(t *testing.T) {
 	}
 }
 
-func TestPushDialog(t *testing.T) {
+func TestPublishBranchFromToolbar(t *testing.T) {
 	tt := newTester(t)
 	origin := t.TempDir()
 	ctx := context.Background()
@@ -756,12 +766,38 @@ func TestPushDialog(t *testing.T) {
 	tt.a.refresh()
 	tt.settle()
 	tt.click(t, loc.PublishBranch())
-	if !tt.HasText("推送 main → forge/main（新建）") || !tt.HasText("4 个提交") {
-		t.Fatalf("texts %q", tt.Texts())
-	}
-	tt.click(t, loc.Push())
 	if tt.a.errMsg != "" || tt.a.status.Upstream != "forge/main" || !tt.HasText(loc.FetchRemote("forge")) {
 		t.Fatalf("error %q, upstream %q", tt.a.errMsg, tt.a.status.Upstream)
+	}
+
+	// A remote update made after the last fetch requires a pull first.
+	run := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	other := filepath.Join(t.TempDir(), "other")
+	run(origin, "clone", "-q", "-b", "main", origin, other)
+	run(other, "-c", "user.name=b", "-c", "user.email=b@b", "commit", "--allow-empty", "-qm", "Remote commit")
+	run(other, "push", "-q")
+	run(tt.a.repo.Dir, "-c", "user.name=a", "-c", "user.email=a@a", "commit", "--allow-empty", "-qm", "Local commit")
+	tt.a.refresh()
+	tt.settle()
+	tt.click(t, loc.PushRemote("forge"))
+	if !tt.a.confirm.open || tt.a.confirm.title != loc.PushRemoteAheadTitle() {
+		t.Fatalf("missing fetch prompt, UI error %q", tt.a.errMsg)
+	}
+	tt.click(t, loc.Fetch())
+	tt.click(t, loc.PullRemote("forge"))
+	if tt.a.errMsg != "" || tt.a.status.Behind != 0 {
+		t.Fatalf("after pull: %+v, UI error %q", tt.a.status, tt.a.errMsg)
+	}
+	tt.click(t, loc.PushRemote("forge"))
+	if tt.a.errMsg != "" || tt.a.status.Ahead != 0 || !tt.HasText(loc.FetchRemote("forge")) {
+		t.Fatalf("after push: %+v, UI error %q", tt.a.status, tt.a.errMsg)
 	}
 }
 
@@ -1200,12 +1236,12 @@ func TestBranchesPopoverAndKeys(t *testing.T) {
 	if tt.a.status.Branch != "feature" || tt.a.branchesOpen {
 		t.Fatalf("branch %q, open %v", tt.a.status.Branch, tt.a.branchesOpen)
 	}
-	// Space stages the change chosen in the list.
+	// Space unchecks the change chosen in the list.
 	tt.click(t, "notes.txt")
 	tt.Key(0, ui.KeySpace)
 	tt.settle()
-	if len(tt.a.staged) != 1 || tt.a.staged[0].Path != "notes.txt" {
-		t.Fatalf("staged %+v", tt.a.staged)
+	if len(tt.a.unstaged) != 1 || tt.a.includeWorkingChange(tt.a.unstaged[0]) {
+		t.Fatalf("changes %+v, excluded %+v", tt.a.unstaged, tt.a.commitExcluded)
 	}
 }
 
