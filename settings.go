@@ -41,7 +41,8 @@ type settings struct {
 	SidebarW            float32         `json:"sidebarW"`
 	SidebarHidden       bool            `json:"sidebarHidden,omitempty"` // the sidebar folded away, for the room its changes need
 	RepoSidebarHidden   bool            `json:"repoSidebarHidden,omitempty"`
-	LocalRepos          []string        `json:"localRepos"` // added local repository and workspace folders, in order
+	LocalRepos          []string        `json:"localRepos"`            // added local repository and workspace folders, in order
+	PinnedRepos         map[string]bool `json:"pinnedRepos,omitempty"` // sidebar projects kept above the other local folders
 	FilesW              float32         `json:"filesW"`
 	StagedPct           float32         `json:"stagedPct"`         // of the changes' room, the staged changes', in percent
 	Proxy               string          `json:"proxy,omitempty"`   // the downloads', "" for the system's
@@ -268,7 +269,7 @@ func shortcuts() []keyBinding {
 		{shiftKey("F7"), loc.PreviousChange()},
 		{shortcut("R"), loc.Refresh()},
 		{shortcut("O"), strings.TrimSuffix(loc.MenuOpenRepo(), "…")},
-		{shiftShortcut("O"), strings.TrimSuffix(loc.SshMenu(), "…")},
+		{shiftShortcut("O"), strings.TrimSuffix(loc.CloneMenu(), "…")},
 		{shortcut(","), strings.TrimSuffix(loc.SettingsMenu(), "…")},
 		{loc.ShortcutSpace(), loc.ShortcutStage()},
 		{loc.ShortcutDelete(), loc.ShortcutDiscard()},

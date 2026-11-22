@@ -23,14 +23,10 @@ jobs:
       - name: Set the version from the tag
         run: jq --arg v "${GITHUB_REF_NAME#v}" '.version = $v' mygo.json > mygo.tmp && mv mygo.tmp mygo.json
       - name: Build
-        # The secret signs the updates that installed apps download.
-        env:
-          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
-          GH_TOKEN: ${{ github.token }}
         run: go tool mygo build -platform darwin/arm64,linux/amd64
       - name: Build the helpers
         # Those the app sends to computers it opens repositories on over SSH,
-        # downloaded from the release and checked with the same key.
+        # downloaded from the release and verified with the helper key.
         env:
           MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
         run: go run ./internal/tools/helpers -o build/helpers
@@ -41,16 +37,13 @@ jobs:
           PATH="$RUNNER_TEMP/venv/bin:$PATH" .github/dmg/add-readme.sh build/darwin-arm64/*.dmg
       - name: Package
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           mkdir dist
           # The downloads keep one name in every release, so the site can link
           # to releases/latest/download/<name>.
           cp build/darwin-arm64/*.dmg dist/MyGit-macos-arm64.dmg
           cp build/linux-amd64/*.deb dist/MyGit-linux-amd64.deb
+          cp build/linux-amd64/mygit-*.tar.gz dist/MyGit-linux-amd64.tar.gz
           cp build/linux-amd64/install.sh dist/
-          # The updates keep their names: the manifests point at them.
-          cp build/*/mygit-*.tar.gz build/*/update-*.json dist/
-          cp build/*/*.delta dist/ 2>/dev/null || true
           cp build/helpers/* dist/
           ls -l dist
       - uses: actions/upload-artifact@v7
@@ -71,19 +64,13 @@ jobs:
         run: jq --arg v "${GITHUB_REF_NAME#v}" '.version = $v' mygo.json > mygo.tmp && mv mygo.tmp mygo.json
       - name: Build
         shell: bash
-        env:
-          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
-          GH_TOKEN: ${{ github.token }}
         run: go tool mygo build -platform windows/amd64
       - name: Package
         shell: bash
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           mkdir dist
           cp build/windows-amd64/*-setup-*.exe dist/MyGit-windows-amd64-setup.exe
           (cd build/windows-amd64 && 7z a -bd ../../dist/MyGit-windows-amd64.zip MyGit.exe icon.png > /dev/null)
-          cp build/windows-amd64/mygit-*.tar.gz build/windows-amd64/update-*.json dist/
-          cp build/windows-amd64/*.delta dist/ 2>/dev/null || true
           ls -l dist
       - uses: actions/upload-artifact@v7
         with:
@@ -104,7 +91,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         # The notes are the version's section of CHANGELOG.md. A pre-release
         # (v0.2.0-rc.1) is marked one, so it never becomes the latest release
-        # that the download links and the updates follow.
+        # that the download links follow.
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           awk -v v="## $VERSION" '$0 == v { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md > notes.md

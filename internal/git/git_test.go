@@ -466,6 +466,17 @@ func TestReword(t *testing.T) {
 	}
 }
 
+func TestCloneRejectsInvalidDestination(t *testing.T) {
+	parent := t.TempDir()
+	for _, name := range []string{"", ".", "..", "../outside", "/absolute", `nested\folder`, "C:outside"} {
+		t.Run(name, func(t *testing.T) {
+			if err := Clone(context.Background(), parent, "https://example.com/repo.git", name, nil); err == nil || err.Error() != "folder name must be a single directory name" {
+				t.Fatalf("invalid clone destination %q: %v", name, err)
+			}
+		})
+	}
+}
+
 func TestCloneInitRemotes(t *testing.T) {
 	ctx := context.Background()
 	src := repo(t)

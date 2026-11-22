@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"mygit/internal/git"
@@ -26,10 +25,9 @@ type workspace struct {
 	apps      []*app // a repository each
 	active    int
 	closed    map[string]bool // the repositories folded away, by folder
-	win       *mygo.Window
 }
 
-// workspaces are the workspaces' windows, by folder.
+// workspaces retains workspace models by folder.
 var workspaces = map[string]*workspace{}
 
 // folder is a folder in a folder: its whole path, and whether it is a
@@ -235,7 +233,7 @@ func openLocal(dir string) error {
 	return nil
 }
 
-// show opens repos' window: the one's, or the workspace's of dir.
+// show selects a repository or workspace in the main window.
 func show(host, dir string, repos []*git.Repo) {
 	if len(repos) == 1 {
 		open(repos[0])
@@ -244,65 +242,30 @@ func show(host, dir string, repos []*git.Repo) {
 	openWorkspace(host, dir, repos)
 }
 
-// openWorkspace shows a workspace's window, the one open already if
-// there is one.
 func openWorkspace(host, dir string, repos []*git.Repo) {
+	m := ensureMainWindow()
 	key := git.Location(host, dir)
 	remember(host, dir)
-	if ws := workspaces[key]; ws != nil {
-		ws.win.Show()
-		ws.win.Focus()
-		return
-	}
-	name := path.Base(strings.ReplaceAll(dir, `\`, "/"))
-	title := name + " — MyGit"
-	if host != "" {
-		title = name + " — " + hostName(host)
-	}
-	ws := &workspace{host: host, dir: dir, closed: map[string]bool{}}
-	for _, r := range repos {
-		a := newApp(r)
-		a.ws = ws
-		ws.apps = append(ws.apps, a)
-	}
-	// Repositories hidden the last time stay hidden, and one that is not
-	// shows when the one worked in last is hidden.
-	for i := range ws.apps {
-		if !ws.hidden(i) {
-			ws.active = i
-			break
+	ws := workspaces[key]
+	if ws == nil {
+		ws = &workspace{host: host, dir: dir, closed: map[string]bool{}}
+		for _, r := range repos {
+			a := newApp(r)
+			a.ws, a.win = ws, m.win
+			ws.apps = append(ws.apps, a)
 		}
-	}
-	ws.win = mygo.NewWindow(repositoryWindowOptions(mygo.WindowOptions{
-		Title:     title,
-		Width:     1200,
-		Height:    800,
-		MinWidth:  720,
-		MinHeight: 480,
-		StateKey:  "main",
-		Content:   ui.View(ws.view),
-	}))
-	dropMenuBar(ws.win)
-	workspaces[key] = ws
-	ws.win.OnClosed(func() { delete(workspaces, key) })
-	// A window closed with a file edited and not saved asks first, in the
-	// repository it is in.
-	ws.win.OnClose(func(e *mygo.CloseEvent) {
-		for i, a := range ws.apps {
-			if a.unsaved() {
-				ws.activate(i)
-				if a.leaving(ws.win.Close) {
-					e.PreventDefault()
-				}
-				return
+		for i := range ws.apps {
+			if !ws.hidden(i) {
+				ws.active = i
+				break
 			}
 		}
-	})
-	for _, a := range ws.apps {
-		a.win = ws.win
-		a.start()
+		workspaces[key] = ws
+		for _, a := range ws.apps {
+			a.start()
+		}
 	}
-	closeWelcome()
+	m.activate(ws.apps[ws.active])
 }
 
 // name is the workspace's folder's name.
@@ -518,8 +481,7 @@ func (a *app) sync() {
 	})
 }
 
-// appAt is the window's repository at a location, of a window of its own
-// or of a workspace's.
+// appAt finds a retained repository model by location.
 func appAt(location string) *app {
 	if a := apps[location]; a != nil {
 		return a
@@ -534,7 +496,7 @@ func appAt(location string) *app {
 	return nil
 }
 
-// allApps are the repositories of every window.
+// allApps returns all retained repository models.
 func allApps() []*app {
 	var all []*app
 	for _, a := range apps {

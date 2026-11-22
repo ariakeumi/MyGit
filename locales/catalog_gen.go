@@ -1038,11 +1038,11 @@ func (msgs Messages) WorktreeNew() string {
 	return Catalog.Format(msgs.locale, "worktreeNew", nil)
 }
 
-// WorktreeOpen says "Open in New Window"
+// WorktreeOpen says "Open"
 // in the language the app shows.
 func WorktreeOpen() string { return In(i18n.Locale()).WorktreeOpen() }
 
-// WorktreeOpen says "Open in New Window"
+// WorktreeOpen says "Open"
 // in the language of msgs.
 func (msgs Messages) WorktreeOpen() string {
 	return Catalog.Format(msgs.locale, "worktreeOpen", nil)
@@ -1748,11 +1748,11 @@ func (msgs Messages) DropHintTitle() string {
 	return Catalog.Format(msgs.locale, "dropHintTitle", nil)
 }
 
-// DropHintSubtitle says "Each repository opens in a window of its own"
+// DropHintSubtitle says "Open repositories in the main window"
 // in the language the app shows.
 func DropHintSubtitle() string { return In(i18n.Locale()).DropHintSubtitle() }
 
-// DropHintSubtitle says "Each repository opens in a window of its own"
+// DropHintSubtitle says "Open repositories in the main window"
 // in the language of msgs.
 func (msgs Messages) DropHintSubtitle() string {
 	return Catalog.Format(msgs.locale, "dropHintSubtitle", nil)
@@ -3446,6 +3446,108 @@ func (msgs Messages) LocalRepositories() string {
 	return Catalog.Format(msgs.locale, "localRepositories", nil)
 }
 
+// PinRepository says "Pin to Top"
+// in the language the app shows.
+func PinRepository() string { return In(i18n.Locale()).PinRepository() }
+
+// PinRepository says "Pin to Top"
+// in the language of msgs.
+func (msgs Messages) PinRepository() string {
+	return Catalog.Format(msgs.locale, "pinRepository", nil)
+}
+
+// UnpinRepository says "Unpin"
+// in the language the app shows.
+func UnpinRepository() string { return In(i18n.Locale()).UnpinRepository() }
+
+// UnpinRepository says "Unpin"
+// in the language of msgs.
+func (msgs Messages) UnpinRepository() string {
+	return Catalog.Format(msgs.locale, "unpinRepository", nil)
+}
+
+// PinnedRepository says "Pinned"
+// in the language the app shows.
+func PinnedRepository() string { return In(i18n.Locale()).PinnedRepository() }
+
+// PinnedRepository says "Pinned"
+// in the language of msgs.
+func (msgs Messages) PinnedRepository() string {
+	return Catalog.Format(msgs.locale, "pinnedRepository", nil)
+}
+
+// RemoveRepository says "Remove from Sidebar"
+// in the language the app shows.
+func RemoveRepository() string { return In(i18n.Locale()).RemoveRepository() }
+
+// RemoveRepository says "Remove from Sidebar"
+// in the language of msgs.
+func (msgs Messages) RemoveRepository() string {
+	return Catalog.Format(msgs.locale, "removeRepository", nil)
+}
+
+// DeleteLocalRepository says "Delete Local Repository…"
+// in the language the app shows.
+func DeleteLocalRepository() string { return In(i18n.Locale()).DeleteLocalRepository() }
+
+// DeleteLocalRepository says "Delete Local Repository…"
+// in the language of msgs.
+func (msgs Messages) DeleteLocalRepository() string {
+	return Catalog.Format(msgs.locale, "deleteLocalRepository", nil)
+}
+
+// DeleteLocalRepositoryTitle says "Delete the local repository?"
+// in the language the app shows.
+func DeleteLocalRepositoryTitle() string { return In(i18n.Locale()).DeleteLocalRepositoryTitle() }
+
+// DeleteLocalRepositoryTitle says "Delete the local repository?"
+// in the language of msgs.
+func (msgs Messages) DeleteLocalRepositoryTitle() string {
+	return Catalog.Format(msgs.locale, "deleteLocalRepositoryTitle", nil)
+}
+
+// DeleteLocalRepositoryMessage says "Move “{path}” and all its contents to the Trash, including uncommitted and untracked files. The remote repository…"
+// in the language the app shows.
+func DeleteLocalRepositoryMessage(path string) string {
+	return In(i18n.Locale()).DeleteLocalRepositoryMessage(path)
+}
+
+// DeleteLocalRepositoryMessage says "Move “{path}” and all its contents to the Trash, including uncommitted and untracked files. The remote repository…"
+// in the language of msgs.
+func (msgs Messages) DeleteLocalRepositoryMessage(path string) string {
+	return Catalog.Format(msgs.locale, "deleteLocalRepositoryMessage", map[string]any{"path": path})
+}
+
+// DeleteLocalRepositoryFailed says "Can't Delete Local Repository"
+// in the language the app shows.
+func DeleteLocalRepositoryFailed() string { return In(i18n.Locale()).DeleteLocalRepositoryFailed() }
+
+// DeleteLocalRepositoryFailed says "Can't Delete Local Repository"
+// in the language of msgs.
+func (msgs Messages) DeleteLocalRepositoryFailed() string {
+	return Catalog.Format(msgs.locale, "deleteLocalRepositoryFailed", nil)
+}
+
+// DeleteLocalRepositoryBusy says "Wait for running Git operations to finish and save any open edits before deleting this repository."
+// in the language the app shows.
+func DeleteLocalRepositoryBusy() string { return In(i18n.Locale()).DeleteLocalRepositoryBusy() }
+
+// DeleteLocalRepositoryBusy says "Wait for running Git operations to finish and save any open edits before deleting this repository."
+// in the language of msgs.
+func (msgs Messages) DeleteLocalRepositoryBusy() string {
+	return Catalog.Format(msgs.locale, "deleteLocalRepositoryBusy", nil)
+}
+
+// DeleteLocalRepositoryChanged says "The repository folder changed while it was being checked. Try again."
+// in the language the app shows.
+func DeleteLocalRepositoryChanged() string { return In(i18n.Locale()).DeleteLocalRepositoryChanged() }
+
+// DeleteLocalRepositoryChanged says "The repository folder changed while it was being checked. Try again."
+// in the language of msgs.
+func (msgs Messages) DeleteLocalRepositoryChanged() string {
+	return Catalog.Format(msgs.locale, "deleteLocalRepositoryChanged", nil)
+}
+
 // AddLocalRepo says "Add Local Repository"
 // in the language the app shows.
 func AddLocalRepo() string { return In(i18n.Locale()).AddLocalRepo() }
@@ -3876,76 +3978,6 @@ func StageLinesTooltip() string { return In(i18n.Locale()).StageLinesTooltip() }
 // in the language of msgs.
 func (msgs Messages) StageLinesTooltip() string {
 	return Catalog.Format(msgs.locale, "stageLinesTooltip", nil)
-}
-
-// UpdateAvailable says "MyGit {version} is available"
-// in the language the app shows.
-func UpdateAvailable(version string) string { return In(i18n.Locale()).UpdateAvailable(version) }
-
-// UpdateAvailable says "MyGit {version} is available"
-// in the language of msgs.
-func (msgs Messages) UpdateAvailable(version string) string {
-	return Catalog.Format(msgs.locale, "updateAvailable", map[string]any{"version": version})
-}
-
-// UpdateInstall says "Update and Restart"
-// in the language the app shows.
-func UpdateInstall() string { return In(i18n.Locale()).UpdateInstall() }
-
-// UpdateInstall says "Update and Restart"
-// in the language of msgs.
-func (msgs Messages) UpdateInstall() string {
-	return Catalog.Format(msgs.locale, "updateInstall", nil)
-}
-
-// UpdateInstalling says "Updating… {percent}%"
-// in the language the app shows.
-func UpdateInstalling(percent int) string { return In(i18n.Locale()).UpdateInstalling(percent) }
-
-// UpdateInstalling says "Updating… {percent}%"
-// in the language of msgs.
-func (msgs Messages) UpdateInstalling(percent int) string {
-	return Catalog.Format(msgs.locale, "updateInstalling", map[string]any{"percent": percent})
-}
-
-// UpdateCheck says "Check for Updates"
-// in the language the app shows.
-func UpdateCheck() string { return In(i18n.Locale()).UpdateCheck() }
-
-// UpdateCheck says "Check for Updates"
-// in the language of msgs.
-func (msgs Messages) UpdateCheck() string {
-	return Catalog.Format(msgs.locale, "updateCheck", nil)
-}
-
-// UpdateCheckFailed says "Couldn't check for updates: no network, or GitHub can't be reached"
-// in the language the app shows.
-func UpdateCheckFailed() string { return In(i18n.Locale()).UpdateCheckFailed() }
-
-// UpdateCheckFailed says "Couldn't check for updates: no network, or GitHub can't be reached"
-// in the language of msgs.
-func (msgs Messages) UpdateCheckFailed() string {
-	return Catalog.Format(msgs.locale, "updateCheckFailed", nil)
-}
-
-// UpdateLatest says "MyGit {version} is the latest"
-// in the language the app shows.
-func UpdateLatest(version string) string { return In(i18n.Locale()).UpdateLatest(version) }
-
-// UpdateLatest says "MyGit {version} is the latest"
-// in the language of msgs.
-func (msgs Messages) UpdateLatest(version string) string {
-	return Catalog.Format(msgs.locale, "updateLatest", map[string]any{"version": version})
-}
-
-// UpdateFailed says "The update failed: try again later, or download it from GitHub"
-// in the language the app shows.
-func UpdateFailed() string { return In(i18n.Locale()).UpdateFailed() }
-
-// UpdateFailed says "The update failed: try again later, or download it from GitHub"
-// in the language of msgs.
-func (msgs Messages) UpdateFailed() string {
-	return Catalog.Format(msgs.locale, "updateFailed", nil)
 }
 
 // About says "About MyGit"
@@ -5194,11 +5226,11 @@ func (msgs Messages) ProxyPlaceholder() string {
 	return Catalog.Format(msgs.locale, "proxyPlaceholder", nil)
 }
 
-// ProxyHint says "For downloading the SSH helpers and updates. Empty follows the system's proxy. git and ssh keep their own."
+// ProxyHint says "For downloading the SSH helpers. Empty follows the system's proxy. git and ssh keep their own."
 // in the language the app shows.
 func ProxyHint() string { return In(i18n.Locale()).ProxyHint() }
 
-// ProxyHint says "For downloading the SSH helpers and updates. Empty follows the system's proxy. git and ssh keep their own."
+// ProxyHint says "For downloading the SSH helpers. Empty follows the system's proxy. git and ssh keep their own."
 // in the language of msgs.
 func (msgs Messages) ProxyHint() string {
 	return Catalog.Format(msgs.locale, "proxyHint", nil)
@@ -5232,26 +5264,6 @@ func OpSync() string { return In(i18n.Locale()).OpSync() }
 // in the language of msgs.
 func (msgs Messages) OpSync() string {
 	return Catalog.Format(msgs.locale, "opSync", nil)
-}
-
-// UpdateLater says "Later"
-// in the language the app shows.
-func UpdateLater() string { return In(i18n.Locale()).UpdateLater() }
-
-// UpdateLater says "Later"
-// in the language of msgs.
-func (msgs Messages) UpdateLater() string {
-	return Catalog.Format(msgs.locale, "updateLater", nil)
-}
-
-// CheckUpdatesMenu says "Check for Updates…"
-// in the language the app shows.
-func CheckUpdatesMenu() string { return In(i18n.Locale()).CheckUpdatesMenu() }
-
-// CheckUpdatesMenu says "Check for Updates…"
-// in the language of msgs.
-func (msgs Messages) CheckUpdatesMenu() string {
-	return Catalog.Format(msgs.locale, "checkUpdatesMenu", nil)
 }
 
 // MenuApp says "MyGit"

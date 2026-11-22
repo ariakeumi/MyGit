@@ -26,6 +26,7 @@ type clonePlan struct {
 	running        bool
 	progress, fail string
 	cancel         context.CancelFunc
+	cancelPick     context.CancelFunc
 	repos          []github.Repository
 	repoQuery      string
 	repoErr        error
@@ -33,6 +34,13 @@ type clonePlan struct {
 }
 
 var readCloneRepositories = github.New(context.Background(), "", "").Repositories
+
+// openClone is shared by the sidebar, menus and command palette.
+func openClone() {
+	ensureMainWindow()
+	welcomeWin.openClone()
+	invalidateMainWindow()
+}
 
 // defaultParent is where clones go: ~/Projects when there is one.
 func defaultParent() string {
@@ -143,7 +151,7 @@ func (w *welcome) cloneView(c *ui.Context) {
 			ui.Row(c.Key("parent")).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, homeRelative(p.parent)).TextColor(t.TextMuted).SingleLine().Grow(1).Basis(0).Tooltip(p.parent)
 				if ui.Button(c, loc.Change()).Disabled(p.running).Clicked() {
-					go w.pickParent()
+					w.pickParent()
 				}
 			})
 			if ui.TextInput(c.Key("name"), &p.name).Label(loc.FolderName()).Placeholder(loc.FolderName()).Disabled(p.running).Changed() {
@@ -180,36 +188,58 @@ func (w *welcome) stopClone() {
 	if w.clone.cancelRepos != nil {
 		w.clone.cancelRepos()
 	}
+	if w.clone.cancelPick != nil {
+		w.clone.cancelPick()
+	}
 	w.clone = clonePlan{}
 }
 
 func (w *welcome) pickParent() {
-	paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: w.win, Title: loc.CloneInto(), Directory: true, CreateDirectories: true})
-	if err == nil && len(paths) > 0 {
-		w.win.Update(func() { w.clone.parent = paths[0] })
+	// A native picker can return after the clone dialog has been replaced.
+	if w.clone.cancelPick != nil {
+		w.clone.cancelPick()
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	w.clone.cancelPick = cancel
+	go func() {
+		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: w.win, Title: loc.CloneInto(), Directory: true, CreateDirectories: true})
+		w.update(func() {
+			if ctx.Err() != nil {
+				return
+			}
+			cancel()
+			w.clone.cancelPick = nil
+			if w.clone.open && !w.clone.running && err == nil && len(paths) > 0 {
+				w.clone.parent = paths[0]
+			}
+		})
+	}()
 }
 
 // startClone clones on a goroutine, showing git's progress, and opens the
 // clone once done.
 func (w *welcome) startClone() {
 	p := &w.clone
+	if !p.open || p.running {
+		return
+	}
 	url, parent, name := strings.TrimSpace(p.url), p.parent, strings.TrimSpace(p.name)
 	ctx, cancel := context.WithCancel(context.Background())
 	p.running, p.fail, p.progress, p.cancel = true, "", loc.Connecting(), cancel
 	go func() {
 		err := git.Clone(ctx, parent, url, name, func(line string) {
-			w.win.Update(func() {
+			w.update(func() {
 				if ctx.Err() == nil {
 					w.clone.progress = line
 				}
 			})
 		})
-		w.win.Update(func() {
+		w.update(func() {
 			if ctx.Err() != nil {
 				return // canceled
 			}
 			w.clone.running = false
+			cancel()
 			if err != nil {
 				w.clone.fail = err.Error()
 				return

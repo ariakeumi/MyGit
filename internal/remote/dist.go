@@ -18,8 +18,7 @@ import (
 	"strings"
 )
 
-// PublicKey signs the helpers published with a release: the app's update
-// key, updates.publicKey of mygo.json.
+// PublicKey verifies the SSH helpers published with a release.
 const PublicKey = "q5C+iL6+Y6YsRMOB9qGLiQyaz7RW3lwtF9eqh4q10fI="
 
 var publicKey = PublicKey // another in tests
@@ -76,8 +75,7 @@ func (s Store) download(ctx context.Context, p Platform) ([]byte, error) {
 	return gz, nil
 }
 
-// Verify checks the signature of a helper: of its SHA-256 digest, in
-// base64, as updates are signed.
+// Verify checks a helper's base64 signature of its SHA-256 digest.
 func Verify(data []byte, signature string) error {
 	pub, _ := base64.StdEncoding.DecodeString(publicKey)
 	sig, err := base64.StdEncoding.DecodeString(strings.TrimSpace(signature))
@@ -88,7 +86,7 @@ func Verify(data []byte, signature string) error {
 	return nil
 }
 
-// Sign signs a helper with the private key of the app's updates, base64.
+// Sign signs a helper with the base64 private key for release helpers.
 func Sign(data []byte, privateKey string) (string, error) {
 	key, err := base64.StdEncoding.DecodeString(strings.TrimSpace(privateKey))
 	if err != nil || len(key) != ed25519.PrivateKeySize {

@@ -5,7 +5,7 @@
 
    xattr -dr com.apple.quarantine /Applications/MyGit.app
 
-3. 打开 MyGit。之后它会自己更新，不用再执行这一步。
+3. 打开 MyGit。更新时请下载并安装新版本。
 
 
 How to install MyGit
@@ -16,4 +16,4 @@ How to install MyGit
 
    xattr -dr com.apple.quarantine /Applications/MyGit.app
 
-3. Open MyGit. It updates itself from then on, without this step again.
+3. Open MyGit. To update, download and install a newer release.

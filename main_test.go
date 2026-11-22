@@ -1038,7 +1038,7 @@ func TestUnpushedCommits(t *testing.T) {
 func TestWelcome(t *testing.T) {
 	dir := t.TempDir()
 	w := &welcome{recent: []string{filepath.Join(dir, "project")}}
-	tt := ui.NewTester(w.view, 520, 600)
+	tt := ui.NewTester(w.view, 1200, 800)
 	for _, s := range []string{"MyGit", "把仓库文件夹拖到这里", "或点击选择文件夹", "最近打开", "project"} {
 		if !tt.HasText(s) {
 			t.Fatalf("no %q in %q", s, tt.Texts())
@@ -1048,6 +1048,74 @@ func TestWelcome(t *testing.T) {
 	tt.Frame()
 	if w.errMsg == "" || !tt.HasText(w.errMsg) {
 		t.Fatalf("error %q, texts %q", w.errMsg, tt.Texts())
+	}
+}
+
+func TestDefaultRepositories(t *testing.T) {
+	root := t.TempDir()
+	current, recent := filepath.Join(root, "current"), filepath.Join(root, "recent")
+	gitInit(t, current, "Current", "")
+	gitInit(t, recent, "Recent", "")
+	empty := t.TempDir()
+	for _, tc := range []struct {
+		name, cwd string
+		locations []string
+		want      string
+	}{
+		{"working directory first", current, []string{recent}, current},
+		{"restore recent", empty, []string{recent, current}, recent},
+		{"skip unavailable and remote", empty, []string{filepath.Join(root, "missing"), "devbox:/repo", recent}, recent},
+		{"skip empty folder", empty, []string{empty, recent}, recent},
+		{"no repositories", empty, []string{"devbox:/repo", empty}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.want != "" {
+				var err error
+				tc.want, err = filepath.EvalSymlinks(tc.want)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			dir, repos := defaultRepositories(tc.cwd, tc.locations)
+			if dir != tc.want || tc.want == "" && len(repos) != 0 || tc.want != "" && (len(repos) != 1 || repos[0].Dir != tc.want) {
+				t.Fatalf("opened %q, %v; want %q", dir, repos, tc.want)
+			}
+		})
+	}
+	workspace := workspaceDir(t)
+	dir, repos := defaultRepositories(empty, []string{workspace})
+	if dir != workspace || len(repos) != 3 {
+		t.Fatalf("restored workspace %q with %d repositories", dir, len(repos))
+	}
+}
+
+func TestEmptyMainWindowSidebar(t *testing.T) {
+	old := *prefs
+	t.Cleanup(func() { *prefs = old })
+	prefs.RepoSidebarHidden = false
+	prefs.LocalRepos = []string{filepath.Join(t.TempDir(), "project")}
+	w := &welcome{}
+	tt := ui.NewTester(w.view, 1200, 800)
+	for _, text := range []string{loc.LocalRepositories(), "project", loc.CloneMenu(), loc.InitMenu(), loc.SshMenu()} {
+		if !tt.HasText(text) {
+			t.Fatalf("no %q in %q", text, tt.Texts())
+		}
+	}
+	for range 2 {
+		if err := tt.Click(loc.HideRepoSidebar()); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+		if tt.HasText(loc.LocalRepositories()) {
+			t.Fatal("repository sidebar still visible")
+		}
+		if err := tt.Click(loc.ShowRepoSidebar()); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+		if !tt.HasText("project") {
+			t.Fatal("repository sidebar did not return")
+		}
 	}
 }
 

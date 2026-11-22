@@ -20,14 +20,16 @@ import (
 // logBatch is how many commits the history shows at a time as it loads.
 const logBatch = 2000
 
-// app is a repository's window: its history, its changes, and the diff of
+// app is a repository's state: its history, its changes, and the diff of
 // what was chosen last.
 type app struct {
-	repo   *git.Repo
-	win    *mygo.Window
-	update func(func())  // runs a function on the main thread, the window's Update
-	online chan struct{} // a refresh reached the repository, for a watch to start again
-	ws     *workspace    // the workspace it is one of, nil in a window of its own
+	repo      *git.Repo
+	win       *mygo.Window
+	update    func(func())  // runs a function on the main thread, the window's Update
+	online    chan struct{} // a refresh reached the repository, for a watch to start again
+	ws        *workspace    // the workspace it is one of, nil for a standalone repository
+	stopWatch context.CancelFunc
+	stopped   bool
 
 	// The history and its graph, a row per commit.
 	commits   []git.Commit
@@ -110,7 +112,7 @@ type app struct {
 
 	busy      string // the operation running, as the toolbar says it
 	errMsg    string
-	notice    string // news that isn't an error, as an update check's
+	notice    string // informational message
 	trustDir  string // a repository another user owns, dropped, to trust
 	sidebarW  float32
 	filesW    float32
@@ -166,23 +168,17 @@ func (a *app) start() {
 	a.fileList.Selected = &a.fileRow
 	if a.win != nil {
 		a.update = a.win.Update
-		a.win.OnFocus(a.refresh) // the repository may have changed in a terminal
-		// A window closed with a file edited and not saved asks first.
-		if a.ws == nil { // a workspace asks for its repositories
-			a.win.OnClose(func(e *mygo.CloseEvent) {
-				if a.unsaved() && a.leaving(a.win.Close) {
-					e.PreventDefault()
-				}
-			})
-		}
-		a.win.OnClosed(func() { // the next window opens as this one was laid out
-			a.githubLogin.close()
-			prefs.SidebarW, prefs.FilesW, prefs.StagedPct = a.sidebarW, a.filesW, a.stagedPct
-			prefs.save()
-		})
 		a.watch()
 	}
 	a.refresh()
+}
+
+func (a *app) stop() {
+	a.stopped = true
+	if a.stopWatch != nil {
+		a.stopWatch()
+	}
+	a.githubLogin.close()
 }
 
 // watch refreshes as files of the working tree or the repository change,
@@ -190,7 +186,7 @@ func (a *app) start() {
 // refreshed as the window is focused.
 func (a *app) watch() {
 	ctx, cancel := context.WithCancel(context.Background())
-	a.win.OnClosed(cancel)
+	a.stopWatch = cancel
 	if !a.local() {
 		go a.watchRemote(ctx)
 		return
@@ -242,7 +238,11 @@ func work[T any](a *app, fn func(ctx context.Context) (T, error), done func(T, e
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 		v, err := fn(ctx)
-		a.update(func() { done(v, err) })
+		a.update(func() {
+			if !a.stopped {
+				done(v, err)
+			}
+		})
 	}()
 }
 
@@ -311,6 +311,9 @@ type snapshot struct {
 // refresh reads the status, and the history again when a ref moved. A
 // refresh asked for while one runs runs once after it.
 func (a *app) refresh() {
+	if a.stopped {
+		return
+	}
 	a.checkPull()
 	if a.refreshing {
 		a.again = true

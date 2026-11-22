@@ -20,8 +20,8 @@ var iconPNG []byte
 
 var icon, _ = ui.DecodeBitmap(iconPNG)
 
-// welcome is the window that opens with no repository to show: a folder
-// to drop on it or to choose, and the repositories opened lately.
+// welcome is the main window's empty state, with the repository sidebar
+// and actions to open, clone, initialize or connect to a repository.
 type welcome struct {
 	win         *mygo.Window
 	recent      []string
@@ -49,45 +49,16 @@ func (w *welcome) update(fn func()) {
 
 var welcomeWin *welcome
 
-// showWelcome opens the welcome window, or brings it to the front.
+// showWelcome selects the empty state in the single main window.
 func showWelcome() {
-	if welcomeWin != nil {
-		welcomeWin.recent = recentLocations()
-		welcomeWin.win.Show()
-		welcomeWin.win.Focus()
-		return
-	}
-	w := &welcome{recent: recentLocations()}
-	w.win = mygo.NewWindow(customTitleBar(mygo.WindowOptions{
-		Title:     "MyGit",
-		Width:     520,
-		Height:    640,
-		MinWidth:  420,
-		MinHeight: 520,
-		Content:   ui.View(w.view),
-	}))
-	dropMenuBar(w.win)
-	w.win.OnClosed(func() {
-		w.stopClone()
-		w.githubLogin.close()
-		welcomeWin = nil
-	})
-	welcomeWin = w
-}
-
-// closeWelcome closes the welcome window once a repository opened.
-func closeWelcome() {
-	if welcomeWin != nil {
-		welcomeWin.win.Close()
-	}
+	m := ensureMainWindow()
+	welcomeWin.recent = recentLocations()
+	m.activate(nil)
 }
 
 // appMenu is the app's menu of the welcome window, as macOS' menu bar has
 // it.
 func (w *welcome) appMenu(m *ui.Menu) {
-	if mygo.Updater.Enabled() && m.Item(loc.CheckUpdatesMenu()).Chosen() {
-		checkUpdateAsked()
-	}
 	if m.Item(loc.SettingsMenu()).Chosen() {
 		w.settings.open = true
 	}
@@ -116,19 +87,41 @@ func (w *welcome) view(c *ui.Context) {
 	defer w.settings.view(c, false, nil)
 	// Folders dropped anywhere open; the drop zone lights up for them,
 	// with no hint over the window as well.
-	root := ui.Column(c).Fill()
+	t := c.Theme()
+	if c.Vibrancy() {
+		c.Root().Background(ui.Transparent)
+	}
+	root := ui.Row(c).Fill().FontSize(12).AlignItems(ui.Stretch)
 	root.Children(func() {
-		// Room to drag the window by, and, with no menu bar, the app's menu
-		// there: checking for updates, the settings and the version.
-		titleBar(c).Children(func() {
-			if !macOS {
-				ui.Box(c).Grow(1)
-				iconMenu(c, "more", loc.MenuApp(), w.appMenu)
+		if !prefs.RepoSidebarHidden {
+			repositorySidebar(c, "")
+		}
+		ui.Column(c.Key("repository-content")).Grow(1).Basis(0).MinWidth(0).Background(t.Background).Children(func() {
+			bar := titleBar(c)
+			if !prefs.RepoSidebarHidden {
+				bar.Padding(0, c.TitleBar().Right+8, 0, 12)
 			}
+			bar.Background(t.Surface).BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
+				if prefs.RepoSidebarHidden {
+					repositorySidebarToggle(c, loc.ShowRepoSidebar())
+				}
+				if macOS {
+					ui.Image(c, icon).Size(20, 20)
+					ui.Text(c, "MyGit").Bold()
+				} else {
+					ui.ButtonBase(c.Key("app-menu")).Label(loc.MenuApp()).Gap(8).PaddingX(4).Cursor(ui.CursorPointer).Children(func() {
+						ui.Image(c, icon).Size(20, 20)
+						ui.Text(c, "MyGit").Bold()
+					}).Menu(w.appMenu)
+				}
+				ui.Box(c).Grow(1)
+				w.githubLogin.button(c)
+			})
+			w.dragging = root.FileDragOver()
+			ui.Column(c).Grow(1).Basis(0).Center().Children(func() {
+				ui.Column(c).Width(520).MaxWidthPercent(100).Height(620).MaxHeightPercent(100).Children(func() { w.body(c) })
+			})
 		})
-		updateBar(c, func(msg string) { w.errMsg = msg }) // with no repository open, update here
-		w.dragging = root.FileDragOver()
-		w.body(c)
 	})
 	if paths := root.DroppedFiles(); len(paths) > 0 {
 		w.open(dropTarget(paths[0]))
@@ -136,11 +129,12 @@ func (w *welcome) view(c *ui.Context) {
 	if !macOS { // the menu bar's on macOS
 		c.OnShortcut(ui.Cmd, ui.KeyComma, func() { w.settings.open = true })
 	}
+	c.OnShortcut(ui.Cmd|ui.Shift, ui.KeyB, toggleRepositorySidebar)
 }
 
 func (w *welcome) body(c *ui.Context) {
 	t := c.Theme()
-	ui.Column(c).Grow(1).Basis(0).Padding(0, 28, 28, 28).Gap(18).Children(func() {
+	ui.Scroll(c).Grow(1).Basis(0).Padding(0, 28, 28, 28).Gap(18).Children(func() {
 		ui.Column(c).Gap(6).AlignItems(ui.Center).Children(func() {
 			ui.Image(c, icon).Size(96, 96)
 			ui.Text(c, "MyGit").FontSize(24).Bold()
@@ -158,7 +152,6 @@ func (w *welcome) body(c *ui.Context) {
 				w.ssh = newConnectPlan()
 			}
 		})
-		w.githubLogin.button(c)
 		if w.errMsg != "" {
 			ui.Text(c, w.errMsg).TextColor(t.Danger).Wrap()
 		}
@@ -178,7 +171,7 @@ func (w *welcome) body(c *ui.Context) {
 		}
 		if len(w.recent) > 0 {
 			ui.Text(c, loc.Recent()).Bold().TextColor(t.TextMuted)
-			ui.Scroll(c).Grow(1).Basis(0).Gap(2).Children(func() {
+			ui.Column(c).Gap(2).Children(func() {
 				for _, l := range w.recent {
 					w.recentRow(c, l)
 				}
@@ -256,7 +249,7 @@ func (w *welcome) pick() {
 	}
 }
 
-// open opens a repository's window, and says why when the folder isn't
+// open selects a repository, and says why when the folder isn't
 // in one.
 func (w *welcome) open(dir string) {
 	w.failed(dir, openLocal(dir))

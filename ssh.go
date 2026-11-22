@@ -198,16 +198,18 @@ var openRemote = func(ctx context.Context, host, dir string) (string, []*git.Rep
 	return openFolders(ctx, remoteHost{host}, listOn(host), dir)
 }
 
+var addRecentDocument = mygo.App.AddRecentDocument
+
 // remember puts a repository's or a workspace's folder first among those
 // opened lately: the system's recent folders for one on this computer, the
 // remote ones for one on another, and the order of them all.
 func remember(host, dir string) {
 	location := git.Location(host, dir)
 	if host == "" {
-		_ = mygo.App.AddRecentDocument(dir)
+		_ = addRecentDocument(dir)
 		if !slices.Contains(prefs.LocalRepos, dir) {
 			prefs.LocalRepos = append(prefs.LocalRepos, dir)
-			invalidateRepositoryWindows()
+			invalidateMainWindow()
 		}
 	} else {
 		prefs.Remotes = first(prefs.Remotes, location, 10)

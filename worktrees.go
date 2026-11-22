@@ -27,7 +27,7 @@ type worktreeDialog struct {
 	placed      bool // dir was written, else it follows the new branch's name
 }
 
-// openRepo opens a repository's window; tests, without windows, swap it.
+// openRepo selects a repository in the main window; tests swap it.
 var openRepo func(*git.Repo)
 
 func init() { openRepo = open } // set apart: open's view leads back to it
@@ -73,7 +73,7 @@ func worktreeNote(w git.Worktree) string {
 	return shortRev(w.Head)
 }
 
-// openWorktree opens a working tree of the repository in its window.
+// openWorktree selects a working tree in the main window.
 func (a *app) openWorktree(dir string) {
 	work(a, func(context.Context) (*git.Repo, error) { return a.repo.Open(dir) }, func(r *git.Repo, err error) {
 		if err != nil {

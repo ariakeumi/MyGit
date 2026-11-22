@@ -65,7 +65,6 @@ func (a *app) view(c *ui.Context) {
 	c.OnShortcut(0, ui.KeyF7, func() { a.stepChange(false) })
 	c.OnShortcut(ui.Shift, ui.KeyF7, func() { a.stepChange(true) })
 	if !macOS { // the menu bar's on macOS, which other systems' windows don't have
-		c.OnShortcut(ui.Cmd|ui.Shift, ui.KeyO, openSSH)
 		c.OnShortcut(ui.Cmd, ui.KeyComma, func() { a.settings.open = true })
 	}
 }
@@ -73,7 +72,6 @@ func (a *app) view(c *ui.Context) {
 func (a *app) repositoryContent(c *ui.Context) {
 	t := c.Theme()
 	a.toolbar(c)
-	a.updateBar(c)
 	if a.notice != "" {
 		ui.Row(c).Padding(6, 12).Gap(8).Background(t.Accent.Alpha(0.1)).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, a.notice).Wrap().Grow(1)

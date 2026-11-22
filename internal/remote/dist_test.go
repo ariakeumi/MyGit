@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/base64"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,21 +13,6 @@ import (
 	"strings"
 	"testing"
 )
-
-// The helpers are signed with the app's update key.
-func TestPublicKeyIsTheApps(t *testing.T) {
-	b, err := os.ReadFile("../../mygo.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var cfg struct{ Updates struct{ PublicKey string } }
-	if err := json.Unmarshal(b, &cfg); err != nil {
-		t.Fatal(err)
-	}
-	if cfg.Updates.PublicKey != PublicKey {
-		t.Errorf("PublicKey = %s, mygo.json has %s", PublicKey, cfg.Updates.PublicKey)
-	}
-}
 
 func TestStoreDownloadsSigned(t *testing.T) {
 	pub, priv, _ := ed25519.GenerateKey(nil)

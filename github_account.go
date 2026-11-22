@@ -55,16 +55,7 @@ func loadGitHubAccount() {
 	}()
 }
 
-func redrawGitHubAccount() {
-	for _, a := range allApps() {
-		if a.win != nil {
-			a.win.Invalidate()
-		}
-	}
-	if welcomeWin != nil {
-		welcomeWin.win.Invalidate()
-	}
-}
+func redrawGitHubAccount() { invalidateMainWindow() }
 
 func (p *githubAccountDialog) button(c *ui.Context) {
 	label := loc.GithubSignIn()

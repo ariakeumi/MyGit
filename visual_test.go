@@ -284,7 +284,7 @@ func demoRepo(t *testing.T, dir string) gitAs {
 	return git
 }
 
-// TestDumpWelcome renders the welcome window into MYGIT_DUMP, 520×640 at
+// TestDumpWelcome renders the empty main window into MYGIT_DUMP, 1200×800 at
 // 2×, as the READMEs and the site show it: repositories opened lately, one
 // on another computer. MYGIT_LOCALE renders it in another language, as en.
 func TestDumpWelcome(t *testing.T) {
@@ -304,16 +304,22 @@ func TestDumpWelcome(t *testing.T) {
 		os.MkdirAll(dir, 0o755)
 		recent = append(recent, dir)
 	}
-	old := prefs.Remotes
+	oldPrefs := *prefs
+	t.Cleanup(func() { *prefs = oldPrefs })
 	prefs.Remotes = []string{"devbox:/home/mia/orbit"}
-	defer func() { prefs.Remotes = old }()
 	w := &welcome{recent: recent}
-	tt := ui.NewTester(w.view, 520, 640)
+	prefs.LocalRepos, prefs.RepoSidebarHidden = recent, false
+	tt := ui.NewTester(w.view, 1200, 800)
 	tt.SetDark(true)
 	tt.SetScale(2)
 	tt.SetTitleBar(ui.TitleBar{Left: 80, Height: 28})
 	tt.Frame()
 	f, _ := os.Create(out + "/welcome.png")
+	png.Encode(f, tt.Image())
+	f.Close()
+	tt.SetSize(720, 480)
+	tt.Frame()
+	f, _ = os.Create(out + "/welcome-small.png")
 	png.Encode(f, tt.Image())
 	f.Close()
 }

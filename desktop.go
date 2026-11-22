@@ -175,9 +175,7 @@ func (a *app) repositorySwitcher(m *ui.Menu) {
 		go pickAndOpen()
 	}
 	if m.Item(loc.CloneMenu()).Chosen() {
-		showWelcome()
-		welcomeWin.openClone()
-		welcomeWin.win.Invalidate()
+		openClone()
 	}
 	if recent := recentLocations(); len(recent) > 0 {
 		m.Separator()

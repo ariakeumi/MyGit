@@ -92,9 +92,10 @@ MyGit 读取靠解析 `git` 的输出，所有改动都交给 `git` 命令本身
 - **冲突**：IntelliJ 式的三栏合并视图，自己从共同祖先算三路合并：结果里没有冲突标记，三栏对齐、一起滚动，每处改动旁有 » « ✕，魔法棒自动解决改了不同单词的冲突；合并、变基、cherry-pick、revert 中途可以继续、跳过或中止
 - **Stash、Blame 和远程**：stash（可包括未跟踪文件）、逐行追溯、远程管理、拉取（快进 / 变基 / 合并）、推送前预览、force-with-lease
 - **登录**：git 需要用户名、令牌或口令时，在窗口里询问
+- **克隆仓库**：从侧栏、文件菜单或命令面板克隆 HTTPS 或 SSH 地址，选择保存位置和文件夹名，查看进度、取消或重试，完成后自动打开仓库
 - **工作区**：打开包含多个仓库的文件夹（比如 agent 同时改几个仓库时的父目录），侧边栏像 VS Code 源代码管理那样列出每个仓库，各自有提交框、同步和改动列表
 - **SSH 远程**：打开另一台电脑上的仓库（`host:/path/to/repo`，Linux、macOS、Windows 都行），沿用本机的 ssh 配置和密钥；MyGit 会在对方的 `~/.mygit` 里放一个小的辅助程序，对方只要有 git。Windows 上 WSL 的发行版也能这样打开，不用配 sshd（`wsl+Ubuntu:~/repo`）
-- **随处可用**：每个仓库一个窗口、拖入文件夹打开、终端里 `mygit .`、自定义标题栏、深浅色（跟随系统，或在设置里指定）、English 和简体中文、签名的自动更新
+- **随处可用**：单窗口切换仓库、拖入文件夹打开、终端里 `mygit .`、自定义标题栏、深浅色（跟随系统，或在设置里指定）、English 和简体中文
 
 ## 安装
 
@@ -106,10 +107,12 @@ MyGit 读取靠解析 `git` 的输出，所有改动都交给 `git` 命令本身
 | Windows（x64） | [安装程序](https://github.com/Binaryify/MyGit/releases/latest/download/MyGit-windows-amd64-setup.exe) · [zip](https://github.com/Binaryify/MyGit/releases/latest/download/MyGit-windows-amd64.zip) |
 | Linux（x64） | [.deb](https://github.com/Binaryify/MyGit/releases/latest/download/MyGit-linux-amd64.deb)，或用下面的脚本 |
 
-Linux 上这条命令把 MyGit 装到 `~/.local`，不需要 root：
+Linux 上这些命令把 MyGit 装到 `~/.local`，不需要 root：
 
 ```bash
-curl -fsSL https://github.com/Binaryify/MyGit/releases/latest/download/install.sh | sh
+curl -fLO https://github.com/Binaryify/MyGit/releases/latest/download/MyGit-linux-amd64.tar.gz
+curl -fLO https://github.com/Binaryify/MyGit/releases/latest/download/install.sh
+sh install.sh MyGit-linux-amd64.tar.gz
 ```
 
 MyGit 暂未经过 Apple 公证。如果 macOS 提示无法打开，先把它拖进「应用程序」，再运行：
@@ -120,7 +123,7 @@ xattr -dr com.apple.quarantine /Applications/MyGit.app
 
 Windows 安装程序暂时也没有代码签名。如果 Windows 提示「已保护你的电脑」，点「更多信息」，再点「仍要运行」。
 
-MyGit 需要 `PATH` 里有 `git`，安装后会自动更新。不支持 Intel Mac。所有版本见 [Releases 页面](https://github.com/Binaryify/MyGit/releases)。
+MyGit 需要 `PATH` 里有 `git`，更新时请下载并安装新版本。不支持 Intel Mac。所有版本见 [Releases 页面](https://github.com/Binaryify/MyGit/releases)。
 
 想从源码构建，见[开发](#开发)。
 
@@ -151,9 +154,9 @@ go tool mygo build -platform darwin/arm64,windows/amd64,linux/amd64
 
 界面文字在 [`locales/`](locales) 里：`en.json` 是源语言，`zh-Hans.json` 和 `zh-Hant.json` 分别是简体中文和繁体中文（台湾用语），改完运行 `go tool mygo generate`。欢迎贡献其他语言的翻译：新增 `locales/<语言标签>.json` 即可。
 
-发布：在 [`CHANGELOG.md`](CHANGELOG.md) 写好这个版本的说明（会成为 Release 的说明，缺了发布会失败），再推送 `v0.2.0` 这样的标签。CI 会用仓库 Secret `MYGO_UPDATER_PRIVATE_KEY` 给更新包签名，打包 macOS 磁盘镜像、Windows 安装程序和 zip、Linux 安装包，并创建 Release。签名私钥在本机 `~/Library/Application Support/mygo/update-keys/mygit/`，丢失后已安装的应用就收不到更新了。仓库是私有的时候，已安装的应用下载不到 Release 里的更新包，测试自动更新前要先把仓库公开，或者把更新包放到公开地址。
+发布：在 [`CHANGELOG.md`](CHANGELOG.md) 写好这个版本的说明（会成为 Release 的说明，缺了发布会失败），再推送 `v0.2.0` 这样的标签。CI 会打包 macOS 磁盘镜像、Windows 安装程序和 zip、Linux 安装包，并创建 Release。
 
-SSH 远程：发布时 CI 会同时编译、签名 6 个平台的辅助程序（`mygit-helper-<系统>-<架构>.gz`）放进 Release，应用第一次连某种系统时下载并验签。开发时用 `go run ./internal/tools/helpers` 编到 `build/helpers`，再用 `MYGIT_HELPER_DIR=$PWD/build/helpers` 启动应用；`MYGIT_E2E_HOST=<主机> MYGIT_HELPER_DIR=$PWD/build/helpers go test ./internal/remote -run E2E -v` 对真实主机跑端到端测试。
+SSH 远程：发布时 CI 会同时编译、用现有 Secret `MYGO_UPDATER_PRIVATE_KEY` 签名 6 个平台的辅助程序（`mygit-helper-<系统>-<架构>.gz`）放进 Release，应用第一次连某种系统时下载并验签，公钥为 `internal/remote/dist.go` 中的 `PublicKey`。开发时用 `go run ./internal/tools/helpers` 编到 `build/helpers`，再用 `MYGIT_HELPER_DIR=$PWD/build/helpers` 启动应用；`MYGIT_E2E_HOST=<主机> MYGIT_HELPER_DIR=$PWD/build/helpers go test ./internal/remote -run E2E -v` 对真实主机跑端到端测试。
 
 基准测试：`MYGIT_BENCH_REPO=<仓库> MYGIT_BENCH_COMMIT=<提交> go test -run '^$' -bench .`
 

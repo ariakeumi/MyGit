@@ -335,7 +335,7 @@
   "branchesWorktrees": "Worktrees",
   "worktreeSubmodule": "submodule",
   "worktreeNew": "Check Out in New Worktree…",
-  "worktreeOpen": "Open in New Window",
+  "worktreeOpen": "Open",
   "worktreeRemove": "Remove Worktree",
   "worktreeRemoveTitle": "Remove worktree {name} anyway?",
   "@worktreeRemoveTitle": {
@@ -500,7 +500,7 @@
   "openRepoDialog": "Open Git Repository",
   "cantOpenFolder": "Can't open this folder",
   "dropHintTitle": "Drop to open the repository",
-  "dropHintSubtitle": "Each repository opens in a window of its own",
+  "dropHintSubtitle": "Open repositories in the main window",
   "credTitle": "Git needs to sign in",
   "credTokenHint": "Sites like GitHub take a personal access token here, not your password. Git's credential manager remembers what works.",
   "blameHint": "Double-click a line to find its commit in the history",
@@ -890,6 +890,23 @@
   "hideSidebar": "Hide Sidebar",
   "showSidebar": "Show Sidebar",
   "localRepositories": "Local Repositories",
+  "pinRepository": "Pin to Top",
+  "unpinRepository": "Unpin",
+  "pinnedRepository": "Pinned",
+  "removeRepository": "Remove from Sidebar",
+  "deleteLocalRepository": "Delete Local Repository…",
+  "deleteLocalRepositoryTitle": "Delete the local repository?",
+  "deleteLocalRepositoryMessage": "Move “{path}” and all its contents to the Trash, including uncommitted and untracked files. The remote repository is unaffected.",
+  "@deleteLocalRepositoryMessage": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteLocalRepositoryFailed": "Can't Delete Local Repository",
+  "deleteLocalRepositoryBusy": "Wait for running Git operations to finish and save any open edits before deleting this repository.",
+  "deleteLocalRepositoryChanged": "The repository folder changed while it was being checked. Try again.",
   "addLocalRepo": "Add Local Repository",
   "hideRepoSidebar": "Hide Repository Sidebar",
   "showRepoSidebar": "Show Repository Sidebar",
@@ -978,34 +995,6 @@
       }
     }
   },
-  "updateAvailable": "MyGit {version} is available",
-  "@updateAvailable": {
-    "placeholders": {
-      "version": {
-        "type": "String"
-      }
-    }
-  },
-  "updateInstall": "Update and Restart",
-  "updateInstalling": "Updating… {percent}%",
-  "@updateInstalling": {
-    "placeholders": {
-      "percent": {
-        "type": "int"
-      }
-    }
-  },
-  "updateCheck": "Check for Updates",
-  "updateCheckFailed": "Couldn't check for updates: no network, or GitHub can't be reached",
-  "updateLatest": "MyGit {version} is the latest",
-  "@updateLatest": {
-    "placeholders": {
-      "version": {
-        "type": "String"
-      }
-    }
-  },
-  "updateFailed": "The update failed: try again later, or download it from GitHub",
   "about": "About MyGit",
   "aboutDetail": "A light, fast, native git client, for remote repositories too: the changes to stage and commit, their diffs, and the history with its graph, on this computer or over SSH.",
   "generatedTag": "Generated",
@@ -1390,7 +1379,7 @@
   "networkSection": "Network proxy",
   "proxy": "Proxy",
   "proxyPlaceholder": "The system's, or http://127.0.0.1:7890, socks5://…",
-  "proxyHint": "For downloading the SSH helpers and updates. Empty follows the system's proxy. git and ssh keep their own.",
+  "proxyHint": "For downloading the SSH helpers. Empty follows the system's proxy. git and ssh keep their own.",
   "proxyInvalid": "Write a proxy as http://host:port, https://… or socks5://…",
   "syncChanges": "Sync Changes {counts}",
   "opSync": "Sync",
@@ -1401,8 +1390,6 @@
       }
     }
   },
-  "updateLater": "Later",
-  "checkUpdatesMenu": "Check for Updates…",
   "menuApp": "MyGit",
   "editCommitMessage": "Edit Commit Message…",
   "rewordTitle": "Edit the message of {rev}",

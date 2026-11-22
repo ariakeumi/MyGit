@@ -52,7 +52,7 @@ const zh = {
   "f3.title": "任何分支都能找到。",
   "f3.body": "边输入边搜索本地和远程分支，在每个分支的菜单里切换、合并、变基、比较、重命名或删除，也能从任意提交开始交互式变基。",
   "f4.title": "怎么打开都行。",
-  "f4.body": "把文件夹拖到窗口上、克隆、新建仓库、在终端里运行 <code>mygit .</code>，或者通过 SSH 打开其他电脑上的仓库。每个仓库都有自己的窗口。",
+  "f4.body": "把文件夹拖到窗口上、克隆、新建仓库、在终端里运行 <code>mygit .</code>，或者通过 SSH 打开其他电脑上的仓库。在同一个主窗口中切换仓库。",
   "m1": "按说明、作者、哈希搜索历史，按分支或路径筛选",
   "m2": "带语法高亮的并排 diff，⌘ 点选两个提交即可比较",
   "m3": "拖动重排，改写说明、squash、fixup 或丢弃",
@@ -69,11 +69,9 @@ const zh = {
   "every.lang": "跟随系统语言",
   "every.theme": "深色与浅色",
   "every.title2": "自定义标题栏",
-  "every.update": "签名的自动更新",
-  "every.update2": "一键完成",
   "install.eyebrow": "安装",
   "install.title": "获取 MyGit。",
-  "install.lede": "免费开源。需要 PATH 里有 git，安装后会自动更新。",
+  "install.lede": "免费开源。需要 PATH 里有 git。更新时请下载并安装新版本。",
   "install.mac": "Apple 芯片",
   "install.dmg": "下载 .dmg",
   "install.exe": "安装程序",
@@ -196,7 +194,7 @@ function countUp(el) {
 
 // Copying the install command, without the prompt and the comment.
 document.querySelector(".copy").addEventListener("click", async (e) => {
-  const text = "curl -fsSL https://github.com/Binaryify/MyGit/releases/latest/download/install.sh | sh\n";
+  const text = "curl -fLO https://github.com/Binaryify/MyGit/releases/latest/download/MyGit-linux-amd64.tar.gz\ncurl -fLO https://github.com/Binaryify/MyGit/releases/latest/download/install.sh\nsh install.sh MyGit-linux-amd64.tar.gz\n";
   try {
     await navigator.clipboard.writeText(text);
     e.target.textContent = (lang === "zh" ? zh : en)["install.copied"];

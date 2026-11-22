@@ -206,7 +206,7 @@
         <article class="card tile tile-2 reveal">
           <div class="tile-copy">
             <h3 data-i18n="f4.title">Open anything.</h3>
-            <p data-i18n-html="f4.body">Drop a folder on a window, clone, start a new repository, run <code>mygit .</code> in a terminal, or open one on another computer over SSH. Each repository gets a window of its own.</p>
+            <p data-i18n-html="f4.body">Drop a folder on a window, clone, start a new repository, run <code>mygit .</code> in a terminal, or open one on another computer over SSH. Switch repositories in the same main window.</p>
           </div>
           <img class="tile-shot tile-shot-crop" data-shot="welcome" src="assets/welcome-en.webp" width="1040" height="1280" loading="lazy" alt="The welcome window">
         </article>
@@ -238,7 +238,6 @@
         <div class="chip"><b>Linux</b><span>x64 · .deb</span></div>
         <div class="chip"><b>English · 简体中文</b><span data-i18n="every.lang">follows your system</span></div>
         <div class="chip"><b data-i18n="every.theme">Light &amp; dark</b><span data-i18n="every.title2">custom title bars</span></div>
-        <div class="chip"><b data-i18n="every.update">Signed updates</b><span data-i18n="every.update2">in one click</span></div>
       </div>
     </section>
 
@@ -246,7 +245,7 @@
     <section id="install" class="section">
       <p class="eyebrow" data-i18n="install.eyebrow">Install</p>
       <h2 data-i18n="install.title">Get MyGit.</h2>
-      <p class="section-lede" data-i18n="install.lede">Free and open source. It needs git on your PATH, and updates itself once installed.</p>
+      <p class="section-lede" data-i18n="install.lede">Free and open source. It needs git on your PATH. Download and install a newer release to update.</p>
 
       <div class="install-grid">
         <div class="install-main">
@@ -273,7 +272,9 @@
           <div class="terminal card reveal">
             <div class="terminal-bar"><i></i><i></i><i></i><span>Linux</span>
               <button type="button" class="copy" data-i18n="install.copy">Copy</button></div>
-<pre><code><span class="prompt">$</span> curl -fsSL https://github.com/Binaryify/MyGit/releases/latest/download/install.sh | sh
+<pre><code><span class="prompt">$</span> curl -fLO https://github.com/Binaryify/MyGit/releases/latest/download/MyGit-linux-amd64.tar.gz
+<span class="prompt">$</span> curl -fLO https://github.com/Binaryify/MyGit/releases/latest/download/install.sh
+<span class="prompt">$</span> sh install.sh MyGit-linux-amd64.tar.gz
 <span class="comment" data-i18n="install.script"># installs in ~/.local, without root</span></code></pre>
           </div>
 

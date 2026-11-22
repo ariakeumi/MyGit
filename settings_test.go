@@ -60,18 +60,12 @@ func TestProxySetting(t *testing.T) {
 	}
 }
 
-// With no repository open, the welcome window offers the update and the
-// settings, without the shortcuts of a repository's window.
-func TestWelcomeUpdateAndSettings(t *testing.T) {
-	old := updates.available
-	defer func() { updates.available = old }()
-	updates.available = &mygo.Update{Version: "9.9.9"}
+// With no repository open, the welcome window offers settings without
+// the shortcuts of a repository's window.
+func TestWelcomeSettings(t *testing.T) {
 	w := &welcome{}
-	tt := ui.NewTester(w.view, 520, 640)
+	tt := ui.NewTester(w.view, 1200, 800)
 	tt.Frame()
-	if !tt.HasText(loc.UpdateAvailable("9.9.9")) || !tt.HasText(loc.UpdateInstall()) {
-		t.Errorf("no update offered: %q", tt.Texts())
-	}
 	w.settings.open = true
 	tt.Frame()
 	if !tt.HasText(loc.NetworkSection()) || tt.HasText(loc.Shortcuts()) {
@@ -93,7 +87,7 @@ func TestWelcomeAppMenu(t *testing.T) {
 	defer func() { macOS = old }()
 	macOS = false
 	w := &welcome{}
-	tt := ui.NewTester(w.view, 520, 640)
+	tt := ui.NewTester(w.view, 1200, 800)
 	tt.SetTitleBar(ui.TitleBar{Right: 138, Height: 32})
 	tt.Frame()
 	if err := tt.Click("MyGit"); err != nil {

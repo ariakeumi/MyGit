@@ -21,6 +21,7 @@ func init() {
 		"panel-center":  `<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18m6-18v18"/>`,
 		"folder":        `<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>`,
 		"repo":          `<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M6 9v6"/><path d="M18 9a9 9 0 0 1-9 9"/>`,
+		"pin":           `<path d="M12 17v5M9 3h6m-5 0v7l-3 4v3h10v-3l-3-4V3"/>`,
 		"server":        `<rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/>`,
 		"chevron-down":  `<path d="m6 9 6 6 6-6"/>`,
 		"chevron-right": `<path d="m9 18 6-6-6-6"/>`,

@@ -92,9 +92,10 @@ MyGit reads what `git` prints and lets `git` itself make every change, so a repo
 - **Conflicts** — a three-pane merge view as IntelliJ's, merging from the base itself: no conflict markers, the panes aligned and scrolling together, » « ✕ by each change, and a magic wand for conflicts of different words; continue, skip or abort a merge, rebase, cherry-pick or revert
 - **Stash, blame and remotes** — stash with untracked files, blame a file line by line, manage remotes, pull (fast-forward, rebase or merge), preview a push, force with lease
 - **Sign-ins** — when git needs a username, token or passphrase, the window asks
+- **Clone repositories** — use the sidebar, File menu or command palette to clone an HTTPS or SSH URL; choose the destination and folder name, follow progress, cancel or retry, and open the repository automatically when done
 - **Workspaces** — open a folder of repositories, as an agent's working folder over a few of them, and each shows in the sidebar with its own message, sync and changes, as VS Code's source control has them
 - **Over SSH** — open a repository on another computer (`host:/path/to/repo`, Linux, macOS or Windows) with your ssh config and keys; MyGit runs a small helper there, in `~/.mygit`, and needs only git on it. On Windows, the distributions of WSL open the same way, without sshd (`wsl+Ubuntu:~/repo`)
-- **Everywhere** — a window per repository, drag folders in, `mygit .` from a terminal, custom title bars, light and dark (the system's or chosen in Settings), English and 简体中文, signed auto-updates
+- **Everywhere** — switch repositories in one window, drag folders in, `mygit .` from a terminal, custom title bars, light and dark (the system's or chosen in Settings), English and 简体中文
 
 ## Install
 
@@ -109,7 +110,9 @@ Download the latest release:
 On Linux, this installs MyGit for you in `~/.local`, without root:
 
 ```bash
-curl -fsSL https://github.com/Binaryify/MyGit/releases/latest/download/install.sh | sh
+curl -fLO https://github.com/Binaryify/MyGit/releases/latest/download/MyGit-linux-amd64.tar.gz
+curl -fLO https://github.com/Binaryify/MyGit/releases/latest/download/install.sh
+sh install.sh MyGit-linux-amd64.tar.gz
 ```
 
 MyGit isn't notarized by Apple yet. If macOS says it can't be opened, move it to Applications and run:
@@ -120,7 +123,7 @@ xattr -dr com.apple.quarantine /Applications/MyGit.app
 
 The Windows installer isn't code-signed yet either. If Windows says it protected your PC, choose **More info**, then **Run anyway**.
 
-MyGit needs `git` on the `PATH`, and updates itself once installed. Intel Macs aren't supported. All releases are on the [releases page](https://github.com/Binaryify/MyGit/releases).
+MyGit needs `git` on the `PATH`. To update, download and install a newer release. Intel Macs aren't supported. All releases are on the [releases page](https://github.com/Binaryify/MyGit/releases).
 
 To build it from source instead, see [Development](#development).
 
@@ -151,9 +154,9 @@ go tool mygo build -platform darwin/arm64,windows/amd64,linux/amd64
 
 The texts live in [`locales/`](locales): `en.json` is the source, with `zh-Hans.json` and `zh-Hant.json` its Simplified and Traditional Chinese. After changing them, run `go tool mygo generate`. Translations into other languages are welcome: add `locales/<tag>.json`.
 
-To release, describe the version in [`CHANGELOG.md`](CHANGELOG.md), whose section becomes the release notes, and push a tag such as `v0.2.0`: CI signs the updates with the `MYGO_UPDATER_PRIVATE_KEY` secret, builds the macOS disk image, the Windows installer and zip, and the Linux package, and publishes them in a release.
+To release, describe the version in [`CHANGELOG.md`](CHANGELOG.md), whose section becomes the release notes, and push a tag such as `v0.2.0`: CI builds the macOS disk image, the Windows installer and zip, and the Linux package, and publishes them in a release.
 
-Over SSH: a release also builds and signs the helper for six platforms (`mygit-helper-<os>-<arch>.gz`), which the app downloads and checks the first time it reaches a computer of each. To try local changes, `go run ./internal/tools/helpers` builds them into `build/helpers`; start the app with `MYGIT_HELPER_DIR=$PWD/build/helpers`. `MYGIT_E2E_HOST=<host> MYGIT_HELPER_DIR=$PWD/build/helpers go test ./internal/remote -run E2E -v` tests against a real computer.
+Over SSH: a release also builds and signs the helper for six platforms (`mygit-helper-<os>-<arch>.gz`) using the existing `MYGO_UPDATER_PRIVATE_KEY` secret. The verification key is `PublicKey` in `internal/remote/dist.go`. The app downloads and checks each helper the first time it reaches a computer of that platform. To try local changes, `go run ./internal/tools/helpers` builds them into `build/helpers`; start the app with `MYGIT_HELPER_DIR=$PWD/build/helpers`. `MYGIT_E2E_HOST=<host> MYGIT_HELPER_DIR=$PWD/build/helpers go test ./internal/remote -run E2E -v` tests against a real computer.
 
 Benchmarks: `MYGIT_BENCH_REPO=<repo> MYGIT_BENCH_COMMIT=<commit> go test -run '^$' -bench .`
 

@@ -3,8 +3,8 @@
 //
 //	mygit [dir]   open the repository dir is in, the current folder's by default
 //
-// A running MyGit opens the repositories later launches name, each in a
-// window of its own.
+// A running MyGit opens the repositories later launches name in its
+// single main window.
 package main
 
 import (
@@ -12,10 +12,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 
 	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/ui"
 
 	"mygit/internal/askpass"
 	"mygit/internal/git"
@@ -23,10 +23,10 @@ import (
 	loc "mygit/locales"
 )
 
-// apps are the open repositories' windows, by working tree.
+// apps retains standalone repository models by working tree.
 var apps = map[string]*app{}
 
-// ready tells whether the app can make windows, and pending holds the
+// ready tells whether the app can show its window, and pending holds the
 // folders the system asked to open before it could.
 var (
 	ready   bool
@@ -39,7 +39,7 @@ func main() {
 		os.Exit(code)
 	}
 	mygo.App.SetName("MyGit")
-	sysproxy.Install() // downloads, the helpers' and the updates', through the system's proxy
+	sysproxy.Install() // download the SSH helpers through the system's proxy
 	loadSettings()
 	if !mygo.App.RequestSingleInstanceLock() {
 		return // the running MyGit opens it
@@ -56,10 +56,16 @@ func main() {
 	})
 	mygo.App.OnActivate(func(visible bool) {
 		if !visible {
-			showWelcome() // the Dock icon clicked with no window open
+			openDefault("") // the Dock icon clicked with no window open
 		}
 	})
 	mygo.App.WhenReady(func() {
+		if runtime.GOOS == "darwin" {
+			// Use the original image instead of the framed legacy icon from macOS.
+			if err := mygo.App.Dock.SetIcon(iconPNG); err != nil {
+				log.Printf("set Dock icon: %v", err)
+			}
+		}
 		mygo.App.SetMenu(appMenu())
 		loadLocalRepositories()
 		loadGitHubAccount()
@@ -70,26 +76,15 @@ func main() {
 			mygo.App.OnQuit(func() { s.Close() })
 		}
 		mygo.App.OnQuit(closeHosts)
-		// Quitting with a file edited and not saved asks, in its window,
-		// a window at a time; quitting goes on once each is saved or given up.
 		mygo.App.OnBeforeQuit(func(e *mygo.QuitEvent) {
-			for _, a := range allApps() {
-				if a.unsaved() {
-					e.PreventDefault()
-					if a.ws != nil {
-						a.ws.activate(slices.Index(a.ws.apps, a))
-					}
-					a.win.Focus()
-					a.leaving(mygo.App.Quit)
-					return
-				}
+			if mainWin != nil && mainWin.leaving(mygo.App.Quit) {
+				e.PreventDefault()
 			}
 		})
 		ready = true
 		if prefs.Language != "" { // the language chosen in Settings
 			mygo.App.SetLocale(prefs.Language)
 		}
-		watchUpdates()
 		if len(pending) > 0 { // started to open them
 			for _, p := range pending {
 				openDir(p)
@@ -106,39 +101,64 @@ func main() {
 
 // openArg opens the repository named by a command line's arguments, or
 // the repositories under the folder they name; with none, the repository
-// of its working folder, or the welcome window when that isn't in one, as
-// when the app starts from Finder or the Start menu, in /, where it doesn't
-// look for repositories below.
+// of its working folder, then the latest available local repository or
+// workspace. With no repository available, the main window opens empty.
 func openArg(args []string, cwd string) {
-	if len(args) > 0 {
-		if host, dir, ok := parseLocation(args[0]); ok && !exists(filepath.Join(cwd, args[0])) {
-			showWelcome()
-			welcomeWin.connect(host, dir)
-			return
-		}
+	if len(args) == 0 {
+		openDefault(cwd)
+		return
 	}
-	dir := cwd
-	if len(args) > 0 {
-		dir = args[0]
-		if !filepath.IsAbs(dir) {
-			dir = filepath.Join(cwd, dir)
-		}
+	if host, dir, ok := parseLocation(args[0]); ok && !exists(filepath.Join(cwd, args[0])) {
+		showWelcome()
+		welcomeWin.connect(host, dir)
+		return
 	}
-	var err error
-	if len(args) > 0 {
-		err = openLocal(dir)
-	} else if repo, rerr := git.Open(dir); rerr == nil {
-		open(repo)
-	} else {
-		err = rerr
+	dir := args[0]
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(cwd, dir)
 	}
+	err := openLocal(dir)
 	if err == nil {
 		return
 	}
 	showWelcome()
-	if len(args) > 0 { // a folder asked for that didn't open: say why
-		welcomeWin.failed(dir, err)
+	welcomeWin.failed(dir, err)
+}
+
+// openDefault resolves repositories off the UI thread, without showing an
+// intermediate welcome window or automatically connecting to a remote host.
+func openDefault(cwd string) {
+	locations := slices.Concat(prefs.Recent, prefs.LocalRepos, recentRepos())
+	go func() {
+		dir, repos := defaultRepositories(cwd, locations)
+		mygo.RunOnMain(func() {
+			if len(repos) > 0 {
+				show("", dir, repos)
+			} else if len(apps) == 0 && len(workspaces) == 0 {
+				showWelcome()
+			}
+		})
+	}()
+}
+
+func defaultRepositories(cwd string, locations []string) (string, []*git.Repo) {
+	if cwd != "" {
+		if repo, err := git.Open(cwd); err == nil {
+			return repo.Dir, []*git.Repo{repo}
+		}
 	}
+	seen := map[string]bool{}
+	for _, dir := range locations {
+		if !filepath.IsAbs(dir) || seen[dir] {
+			continue
+		}
+		seen[dir] = true
+		whole, repos, err := openFolders(context.Background(), git.Local, listLocal, dir)
+		if err == nil && len(repos) > 0 {
+			return whole, repos
+		}
+	}
+	return "", nil
 }
 
 func openDir(dir string) {
@@ -148,34 +168,19 @@ func openDir(dir string) {
 	}
 }
 
-// open shows a repository's window, the one open already if there is one.
+// open selects a repository in the main window, reusing its retained model.
 func open(repo *git.Repo) {
+	m := ensureMainWindow()
 	key := repo.Location()
 	remember(repo.Host(), repo.Dir)
-	if a := apps[key]; a != nil {
-		a.win.Show()
-		a.win.Focus()
-		return
+	a := apps[key]
+	if a == nil {
+		a = newApp(repo)
+		a.win = m.win
+		apps[key] = a
+		a.start()
 	}
-	title := repo.Name() + " — MyGit"
-	if repo.Host() != "" {
-		title = repo.Name() + " — " + hostName(repo.Host())
-	}
-	a := newApp(repo)
-	a.win = mygo.NewWindow(repositoryWindowOptions(mygo.WindowOptions{
-		Title:     title,
-		Width:     1200,
-		Height:    800,
-		MinWidth:  720,
-		MinHeight: 480,
-		StateKey:  "main",
-		Content:   ui.View(a.view),
-	}))
-	dropMenuBar(a.win)
-	apps[key] = a
-	a.win.OnClosed(func() { delete(apps, key) })
-	a.start()
-	closeWelcome()
+	m.activate(a)
 }
 
 // pickAndOpen asks for a repository's folder and opens it. The dialogs
@@ -197,11 +202,9 @@ func pickAndOpen() {
 
 func appMenu() *mygo.Menu {
 	return mygo.NewMenu([]*mygo.MenuItem{
-		// macOS' app menu, with checking for updates and the settings, which
-		// a user who hasn't opened a repository reaches there.
+		// macOS' app menu includes settings even with no repository open.
 		{Role: mygo.RoleAppMenu, Submenu: []*mygo.MenuItem{
 			{Role: mygo.RoleAbout},
-			{Label: loc.CheckUpdatesMenu(), Hidden: !mygo.Updater.Enabled(), Click: func(*mygo.MenuItem, *mygo.Window) { checkUpdateAsked() }},
 			mygo.Separator(),
 			{Label: loc.SettingsMenu(), Accelerator: "CmdOrCtrl+,", Click: func(_ *mygo.MenuItem, w *mygo.Window) { openSettings(w) }},
 			mygo.Separator(),
@@ -215,7 +218,8 @@ func appMenu() *mygo.Menu {
 		}},
 		{Label: loc.MenuFile(), Submenu: []*mygo.MenuItem{
 			{Label: loc.MenuOpenRepo(), Accelerator: "CmdOrCtrl+O", Click: func(*mygo.MenuItem, *mygo.Window) { go pickAndOpen() }},
-			{Label: loc.SshMenu(), Accelerator: "CmdOrCtrl+Shift+O", Click: func(*mygo.MenuItem, *mygo.Window) { openSSH() }},
+			{Label: loc.CloneMenu(), Accelerator: "CmdOrCtrl+Shift+O", Click: func(*mygo.MenuItem, *mygo.Window) { openClone() }},
+			{Label: loc.SshMenu(), Click: func(*mygo.MenuItem, *mygo.Window) { openSSH() }},
 			{Role: mygo.RoleOpenRecent, Label: loc.MenuRecent()},
 			mygo.Separator(),
 			{Label: loc.MenuInstallCLI(), Click: func(*mygo.MenuItem, *mygo.Window) { go installLauncher() }},
@@ -228,22 +232,15 @@ func appMenu() *mygo.Menu {
 	})
 }
 
-// openSettings opens the settings in the window w, a repository's, or the
-// welcome window when no repository's window is in front.
-func openSettings(w *mygo.Window) {
-	for _, a := range allApps() {
-		if a.win == w && w != nil {
-			if a.ws != nil {
-				a = a.ws.apps[a.ws.active]
-			}
-			a.settings.open = true
-			w.Invalidate()
-			return
-		}
+// openSettings opens settings for the content visible in the main window.
+func openSettings(_ *mygo.Window) {
+	m := ensureMainWindow()
+	if a := m.current(); a != nil {
+		a.settings.open = true
+	} else {
+		welcomeWin.settings.open = true
 	}
-	showWelcome()
-	welcomeWin.settings.open = true
-	welcomeWin.win.Invalidate()
+	m.win.Invalidate()
 }
 
 // exists tells whether there is a file or a folder at p.
@@ -258,19 +255,25 @@ func exists(p string) bool {
 func askUser(dir, prompt string) (string, bool) {
 	done := make(chan credAnswer, 1)
 	mygo.RunOnMain(func() {
-		switch {
-		case appAt(dir) != nil:
-			a := appAt(dir)
-			if a.ws != nil {
-				a.ws.activate(slices.Index(a.ws.apps, a))
-			}
-			a.askCredential(prompt, done)
-		case welcomeWin != nil:
-			welcomeWin.cred.ask(welcomeWin.win, prompt, done)
-		default:
-			done <- credAnswer{}
-		}
+		askUserInWindow(dir, prompt, done)
 	})
 	r := <-done
 	return r.value, r.ok
+}
+
+func askUserInWindow(dir, prompt string, done chan credAnswer) {
+	switch {
+	case welcomeWin != nil && welcomeWin.clone.running && filepath.Clean(dir) == filepath.Clean(welcomeWin.clone.parent):
+		// Clone runs in its parent folder, which may itself be an open repository.
+		welcomeWin.cred.ask(welcomeWin.win, prompt, done)
+	case appAt(dir) != nil:
+		a := appAt(dir)
+		mainWin.activate(a)
+		a.askCredential(prompt, done)
+	case welcomeWin != nil:
+		showWelcome()
+		welcomeWin.cred.ask(welcomeWin.win, prompt, done)
+	default:
+		done <- credAnswer{}
+	}
 }

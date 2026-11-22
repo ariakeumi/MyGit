@@ -247,8 +247,9 @@ func TestOpenOverSSHFromAWindow(t *testing.T) {
 	}
 	tt.CloseMenu()
 	tt.a.openCommands()
+	tt.a.palette.query = loc.SshMenu()
 	tt.Frame()
-	if !tt.HasText("通过 SSH 打开…") || !tt.HasText(shiftShortcut("O")) {
+	if !tt.HasText("通过 SSH 打开…") || tt.HasText(shiftShortcut("O")) {
 		t.Errorf("commands %q", tt.Texts())
 	}
 }

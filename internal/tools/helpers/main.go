@@ -1,6 +1,6 @@
 // Helpers builds the helper for every platform MyGit reaches over SSH,
-// gzipped as a release publishes them, and signs each with the key of the
-// app's updates when MYGO_UPDATER_PRIVATE_KEY has it.
+// gzipped as a release publishes them, and signs each with the helper key
+// in MYGO_UPDATER_PRIVATE_KEY (the existing release secret).
 //
 //	go run ./internal/tools/helpers [-o dir]
 //

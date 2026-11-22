@@ -35,19 +35,16 @@ func loadLocalRepositories() {
 	prefs.save()
 }
 
-func invalidateRepositoryWindows() {
-	for _, a := range apps {
-		a.win.Invalidate()
-	}
-	for _, ws := range workspaces {
-		ws.win.Invalidate()
+func invalidateMainWindow() {
+	if mainWin != nil && mainWin.win != nil {
+		mainWin.win.Invalidate()
 	}
 }
 
 func toggleRepositorySidebar() {
 	prefs.RepoSidebarHidden = !prefs.RepoSidebarHidden
 	prefs.save()
-	invalidateRepositoryWindows()
+	invalidateMainWindow()
 }
 
 func repositorySidebarToggle(c *ui.Context, label string) {
@@ -57,6 +54,30 @@ func repositorySidebarToggle(c *ui.Context, label string) {
 }
 
 func (a *app) repositorySidebar(c *ui.Context) {
+	current := ""
+	if a.local() {
+		current = a.repo.Dir
+		if a.ws != nil {
+			current = a.ws.dir
+		}
+	}
+	repositorySidebar(c, current)
+}
+
+// Keep each group's original order, so unpinning restores a project's place.
+func sidebarRepositories() []string {
+	dirs := make([]string, 0, len(prefs.LocalRepos))
+	for _, pinned := range []bool{true, false} {
+		for _, dir := range prefs.LocalRepos {
+			if prefs.PinnedRepos[dir] == pinned {
+				dirs = append(dirs, dir)
+			}
+		}
+	}
+	return dirs
+}
+
+func repositorySidebar(c *ui.Context, current string) {
 	t := c.Theme()
 	side := ui.Column(c.Key("repository-sidebar")).Width(repositorySidebarWidth).Shrink(0).
 		BorderWidth(0, 1, 0, 0).BorderColor(t.Border)
@@ -65,13 +86,6 @@ func (a *app) repositorySidebar(c *ui.Context) {
 		background = ui.Transparent
 	}
 	side.Background(background)
-	current := ""
-	if a.local() {
-		current = a.repo.Dir
-		if a.ws != nil {
-			current = a.ws.dir
-		}
-	}
 	selected := ui.Local(side, "selection", func() string { return current })
 	side.Children(func() {
 		bar := titleBar(c)
@@ -84,8 +98,42 @@ func (a *app) repositorySidebar(c *ui.Context) {
 		})
 		ui.Sidebar(c, selected, func() {
 			ui.SidebarSection(c, loc.LocalRepositories(), nil, func() {
-				for _, dir := range prefs.LocalRepos {
-					ui.SidebarItem(c, dir, icons["repo"], filepath.Base(dir)).Tooltip(homeRelative(dir))
+				for _, dir := range sidebarRepositories() {
+					pinned := prefs.PinnedRepos[dir]
+					row := ui.SidebarItem(c, dir, icons["repo"], filepath.Base(dir)).Tooltip(homeRelative(dir))
+					if pinned {
+						row.Children(func() {
+							ui.Icon(c, icons["pin"]).Size(12, 12).Shrink(0).Tooltip(loc.PinnedRepository())
+						})
+					}
+					row.ContextMenu(func(m *ui.Menu) {
+						label := loc.PinRepository()
+						if pinned {
+							label = loc.UnpinRepository()
+						}
+						if m.Item(label).Chosen() {
+							if pinned {
+								delete(prefs.PinnedRepos, dir)
+							} else {
+								if prefs.PinnedRepos == nil {
+									prefs.PinnedRepos = map[string]bool{}
+								}
+								prefs.PinnedRepos[dir] = true
+							}
+							prefs.save()
+							invalidateMainWindow()
+						}
+						m.Separator()
+						if m.Item(loc.RemoveRepository()).Chosen() {
+							prefs.LocalRepos = slices.DeleteFunc(prefs.LocalRepos, func(d string) bool { return d == dir })
+							delete(prefs.PinnedRepos, dir)
+							prefs.save()
+							invalidateMainWindow()
+						}
+						if mainWin != nil && m.Item(loc.DeleteLocalRepository()).Disabled(mainWin.repoDelete.running).Chosen() {
+							mainWin.repoDelete = repositoryDeletion{dir: dir, confirm: true}
+						}
+					})
 				}
 			})
 		}).Grow(1).Background(background).Label(loc.LocalRepositories()).OnChange(func() {
@@ -95,23 +143,29 @@ func (a *app) repositorySidebar(c *ui.Context) {
 				openSidebarRepository(dir)
 			}
 		})
+		if current != "" {
+			ui.Row(c.Key("clone-action")).Padding(8).Children(func() {
+				ui.Button(c, loc.CloneMenu()).Grow(1).OnClick(openClone)
+			})
+		}
 	})
 }
 
 func openSidebarRepository(dir string) {
 	if a := apps[dir]; a != nil {
-		a.win.Show()
-		a.win.Focus()
+		ensureMainWindow().activate(a)
 		return
 	}
 	if ws := workspaces[dir]; ws != nil {
-		ws.win.Show()
-		ws.win.Focus()
+		ensureMainWindow().activate(ws.apps[ws.active])
 		return
 	}
 	go func() {
 		whole, repos, err := openFolders(context.Background(), git.Local, listLocal, dir)
 		mygo.RunOnMain(func() {
+			if !slices.Contains(prefs.LocalRepos, dir) {
+				return
+			}
 			if err != nil {
 				showWelcome()
 				welcomeWin.failed(dir, err)
