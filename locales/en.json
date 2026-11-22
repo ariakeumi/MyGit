@@ -624,6 +624,53 @@
   "menuEdit": "Edit",
   "menuWindow": "Window",
   "remotesMenu": "Remotes…",
+  "renameGithubRepoMenu": "Rename GitHub Repository…",
+  "renameGithubRepo": "Rename GitHub Repository",
+  "renameGithubRepoTarget": "Rename {repo} on GitHub and update the matching URLs for {remote}.",
+  "@renameGithubRepoTarget": {
+    "placeholders": {
+      "repo": {
+        "type": "String"
+      },
+      "remote": {
+        "type": "String"
+      }
+    }
+  },
+  "renameGithubRepoName": "New repository name",
+  "renameGithubRepoInvalid": "Use letters, numbers, periods, hyphens or underscores. Enter a name other than . or ..",
+  "renameGithubRepoChanged": "The remote changed. Refresh the repository and select the remote again.",
+  "renameGithubRepoSignIn": "Use Sign in to GitHub in the toolbar to rename the repository.",
+  "renameGithubRepoPermission": "Check that your GitHub credentials have administration access to this repository. {error}",
+  "@renameGithubRepoPermission": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "renameGithubRepoSuccess": "GitHub repository renamed to {repo}.",
+  "@renameGithubRepoSuccess": {
+    "placeholders": {
+      "repo": {
+        "type": "String"
+      }
+    }
+  },
+  "renameGithubRepoRemoteFailed": "GitHub repository renamed to {repo}. Some URLs for {remote} could not be updated. Check the remote's Git configuration. {error}",
+  "@renameGithubRepoRemoteFailed": {
+    "placeholders": {
+      "repo": {
+        "type": "String"
+      },
+      "remote": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "showInFolder": "Show in Folder",
   "openRepoInEditor": "Open Repository in Editor",
   "settingsMenu": "Settings…",

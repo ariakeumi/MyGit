@@ -45,6 +45,7 @@ func (a *app) view(c *ui.Context) {
 	a.promptView(c)
 	a.worktreeView(c)
 	a.remotesView(c)
+	a.repositoryRenameView(c)
 	a.settingsView(c)
 	a.confirmView(c)
 	a.cred.view(c)

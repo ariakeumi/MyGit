@@ -100,6 +100,7 @@ type app struct {
 	push         *pushPlan
 	cred         credPrompt
 	githubLogin  githubAccountDialog
+	repoRename   repositoryRenameDialog
 	remotes2     remotesPlan // the remotes dialog
 	settings     settingsDialog
 	palette      palette   // ⌘P's files and ⌘K's commands

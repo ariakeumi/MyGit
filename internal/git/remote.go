@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"path"
+	"regexp"
 	"strings"
 )
 
@@ -49,6 +51,71 @@ func (r *Repo) RenameRemote(ctx context.Context, from, to string) error {
 func (r *Repo) SetRemoteURL(ctx context.Context, name, url string) error {
 	_, err := r.Git(ctx, "remote", "set-url", name, url)
 	return err
+}
+
+// RewriteRemoteURLs replaces matching URLs configured for the remote.
+// The callback returns an empty string for URLs that should be left alone.
+func (r *Repo) RewriteRemoteURLs(ctx context.Context, name string, rewrite func(string) string) error {
+	out, err := r.Git(ctx, "config", "--local", "--null", "--list")
+	if err != nil {
+		return err
+	}
+	fetchKey, pushKey := "remote."+name+".url", "remote."+name+".pushurl"
+	counts := map[string]int{}
+	for entry := range strings.SplitSeq(out, "\x00") {
+		counts[entry]++
+	}
+	var updatedFetch bool
+	var errs []error
+	for entry := range strings.SplitSeq(out, "\x00") {
+		count := counts[entry]
+		delete(counts, entry)
+		key, old, _ := strings.Cut(entry, "\n")
+		if count == 0 || (key != fetchKey && key != pushKey) {
+			continue
+		}
+		next := rewrite(old)
+		if next == "" {
+			continue
+		}
+		// Replacing duplicate values with git config drops all but the last
+		// occurrence, which can change the remote's primary fetch URL.
+		if count > 1 {
+			errs = append(errs, fmt.Errorf("duplicate URL entries for %s", key))
+			continue
+		}
+		args := []string{"remote", "set-url"}
+		if key == pushKey {
+			args = append(args, "--push")
+		}
+		if _, err := r.Git(ctx, append(args, "--", name, next, "^"+regexp.QuoteMeta(old)+"$")...); err != nil {
+			errs = append(errs, err)
+		} else if key == fetchKey {
+			updatedFetch = true
+		}
+	}
+	if !updatedFetch && len(errs) == 0 {
+		return errors.New("no matching fetch URL in local Git configuration")
+	}
+	if err := errors.Join(errs...); err != nil {
+		return err
+	}
+	for _, push := range []bool{false, true} {
+		args := []string{"remote", "get-url", "--all"}
+		if push {
+			args = append(args, "--push")
+		}
+		urls, err := r.Git(ctx, append(args, "--", name)...)
+		if err != nil {
+			return err
+		}
+		for old := range strings.SplitSeq(urls, "\n") {
+			if next := rewrite(old); next != "" && next != old {
+				return errors.New("a configured URL still points to the old repository")
+			}
+		}
+	}
+	return nil
 }
 
 // FetchRemote updates one remote's branches.

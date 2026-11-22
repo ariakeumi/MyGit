@@ -1,6 +1,4 @@
-// Package github reads and reviews a repository's pull requests with
-// GitHub's API: the open ones, a pull request's review threads, replies,
-// resolving threads, and reviews with their comments.
+// Package github uses GitHub's API to manage repositories and review pull requests.
 package github
 
 import (
@@ -16,8 +14,7 @@ import (
 	"time"
 )
 
-// Client is a repository's API, with the user's token when there is one:
-// public pull requests read without one, and reviewing needs it.
+// Client is a repository's API, with the user's token when there is one.
 type Client struct {
 	Owner, Repo string
 	Token       string
@@ -26,17 +23,26 @@ type Client struct {
 	useAccount  bool
 }
 
-// remoteRE takes a GitHub remote's owner and repository from its URL, as
-// git@github.com:o/r.git, https://github.com/o/r and ssh://git@github.com/o/r.
-var remoteRE = regexp.MustCompile(`github\.com[:/]+([^/]+)/([^/]+?)(?:\.git)?/?$`)
+// Keep the prefix and suffix so a rename preserves the remote's URL style.
+var remoteRE = regexp.MustCompile(`(?i)^((?:(?:https?|git|ssh)://(?:[^/@\s]+@)?github\.com(?::[0-9]+)?/|ssh://(?:[^/@\s]+@)?ssh\.github\.com(?::[0-9]+)?/|(?:[^/@:\s]+@)?github\.com:)([a-z0-9_-]+)/)([a-z0-9_.-]+?)((?:\.git)?/?)$`)
 
 // ParseRemote is the owner and repository a GitHub remote's URL names.
-func ParseRemote(url string) (owner, repo string, ok bool) {
-	m := remoteRE.FindStringSubmatch(strings.TrimSpace(url))
+func ParseRemote(rawURL string) (owner, repo string, ok bool) {
+	m := remoteRE.FindStringSubmatch(strings.TrimSpace(rawURL))
 	if m == nil {
 		return "", "", false
 	}
-	return m[1], m[2], true
+	return m[2], m[3], ValidRepositoryName(m[3])
+}
+
+// RenamedRemoteURL returns the URL with its repository name replaced if it
+// points to owner/repo, or an empty string otherwise.
+func RenamedRemoteURL(rawURL, owner, repo, name string) string {
+	m := remoteRE.FindStringSubmatch(strings.TrimSpace(rawURL))
+	if m == nil || !strings.EqualFold(m[2], owner) || !strings.EqualFold(m[3], repo) {
+		return ""
+	}
+	return m[1] + name + m[4]
 }
 
 // New is a client of owner/repo's API with the user's token.
@@ -55,7 +61,7 @@ func (c *Client) withCredentials(ctx context.Context) *Client {
 	return &client
 }
 
-// ErrNoToken says reviewing needs the user to sign in.
+// ErrNoToken says the requested operation needs the user to sign in.
 var ErrNoToken = errors.New("no GitHub token")
 
 // User is an account, as a pull request's author.
@@ -292,6 +298,8 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("GitHub: %s (%d)", e.Message, e.Status)
 }
 
+const requestTimeout = 30 * time.Second
+
 func (c *Client) do(ctx context.Context, method, path string, in, out any) error {
 	c = c.withCredentials(ctx)
 	var body io.Reader
@@ -323,7 +331,7 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) error
 	}
 	h := c.HTTP
 	if h == nil {
-		h = &http.Client{Timeout: 30 * time.Second}
+		h = &http.Client{Timeout: requestTimeout}
 	}
 	resp, err := h.Do(req)
 	if err != nil {

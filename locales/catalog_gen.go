@@ -2274,6 +2274,114 @@ func (msgs Messages) RemotesMenu() string {
 	return Catalog.Format(msgs.locale, "remotesMenu", nil)
 }
 
+// RenameGithubRepoMenu says "Rename GitHub Repository…"
+// in the language the app shows.
+func RenameGithubRepoMenu() string { return In(i18n.Locale()).RenameGithubRepoMenu() }
+
+// RenameGithubRepoMenu says "Rename GitHub Repository…"
+// in the language of msgs.
+func (msgs Messages) RenameGithubRepoMenu() string {
+	return Catalog.Format(msgs.locale, "renameGithubRepoMenu", nil)
+}
+
+// RenameGithubRepo says "Rename GitHub Repository"
+// in the language the app shows.
+func RenameGithubRepo() string { return In(i18n.Locale()).RenameGithubRepo() }
+
+// RenameGithubRepo says "Rename GitHub Repository"
+// in the language of msgs.
+func (msgs Messages) RenameGithubRepo() string {
+	return Catalog.Format(msgs.locale, "renameGithubRepo", nil)
+}
+
+// RenameGithubRepoTarget says "Rename {repo} on GitHub and update the matching URLs for {remote}."
+// in the language the app shows.
+func RenameGithubRepoTarget(repo string, remote string) string {
+	return In(i18n.Locale()).RenameGithubRepoTarget(repo, remote)
+}
+
+// RenameGithubRepoTarget says "Rename {repo} on GitHub and update the matching URLs for {remote}."
+// in the language of msgs.
+func (msgs Messages) RenameGithubRepoTarget(repo string, remote string) string {
+	return Catalog.Format(msgs.locale, "renameGithubRepoTarget", map[string]any{"repo": repo, "remote": remote})
+}
+
+// RenameGithubRepoName says "New repository name"
+// in the language the app shows.
+func RenameGithubRepoName() string { return In(i18n.Locale()).RenameGithubRepoName() }
+
+// RenameGithubRepoName says "New repository name"
+// in the language of msgs.
+func (msgs Messages) RenameGithubRepoName() string {
+	return Catalog.Format(msgs.locale, "renameGithubRepoName", nil)
+}
+
+// RenameGithubRepoInvalid says "Use letters, numbers, periods, hyphens or underscores. Enter a name other than . or .."
+// in the language the app shows.
+func RenameGithubRepoInvalid() string { return In(i18n.Locale()).RenameGithubRepoInvalid() }
+
+// RenameGithubRepoInvalid says "Use letters, numbers, periods, hyphens or underscores. Enter a name other than . or .."
+// in the language of msgs.
+func (msgs Messages) RenameGithubRepoInvalid() string {
+	return Catalog.Format(msgs.locale, "renameGithubRepoInvalid", nil)
+}
+
+// RenameGithubRepoChanged says "The remote changed. Refresh the repository and select the remote again."
+// in the language the app shows.
+func RenameGithubRepoChanged() string { return In(i18n.Locale()).RenameGithubRepoChanged() }
+
+// RenameGithubRepoChanged says "The remote changed. Refresh the repository and select the remote again."
+// in the language of msgs.
+func (msgs Messages) RenameGithubRepoChanged() string {
+	return Catalog.Format(msgs.locale, "renameGithubRepoChanged", nil)
+}
+
+// RenameGithubRepoSignIn says "Use Sign in to GitHub in the toolbar to rename the repository."
+// in the language the app shows.
+func RenameGithubRepoSignIn() string { return In(i18n.Locale()).RenameGithubRepoSignIn() }
+
+// RenameGithubRepoSignIn says "Use Sign in to GitHub in the toolbar to rename the repository."
+// in the language of msgs.
+func (msgs Messages) RenameGithubRepoSignIn() string {
+	return Catalog.Format(msgs.locale, "renameGithubRepoSignIn", nil)
+}
+
+// RenameGithubRepoPermission says "Check that your GitHub credentials have administration access to this repository. {error}"
+// in the language the app shows.
+func RenameGithubRepoPermission(error string) string {
+	return In(i18n.Locale()).RenameGithubRepoPermission(error)
+}
+
+// RenameGithubRepoPermission says "Check that your GitHub credentials have administration access to this repository. {error}"
+// in the language of msgs.
+func (msgs Messages) RenameGithubRepoPermission(error string) string {
+	return Catalog.Format(msgs.locale, "renameGithubRepoPermission", map[string]any{"error": error})
+}
+
+// RenameGithubRepoSuccess says "GitHub repository renamed to {repo}."
+// in the language the app shows.
+func RenameGithubRepoSuccess(repo string) string {
+	return In(i18n.Locale()).RenameGithubRepoSuccess(repo)
+}
+
+// RenameGithubRepoSuccess says "GitHub repository renamed to {repo}."
+// in the language of msgs.
+func (msgs Messages) RenameGithubRepoSuccess(repo string) string {
+	return Catalog.Format(msgs.locale, "renameGithubRepoSuccess", map[string]any{"repo": repo})
+}
+
+// RenameGithubRepoRemoteFailed says "GitHub repository renamed to {repo}. Some URLs for {remote} could not be updated. Check the remote's Git configuratio…"
+// in the language the app shows.
+func RenameGithubRepoRemoteFailed(repo string, remote string, error string) string {
+	return In(i18n.Locale()).RenameGithubRepoRemoteFailed(repo, remote, error)
+}
+
+// RenameGithubRepoRemoteFailed says "GitHub repository renamed to {repo}. Some URLs for {remote} could not be updated. Check the remote's Git configuratio…"
+// in the language of msgs.
+func (msgs Messages) RenameGithubRepoRemoteFailed(repo string, remote string, error string) string {
+	return Catalog.Format(msgs.locale, "renameGithubRepoRemoteFailed", map[string]any{"repo": repo, "remote": remote, "error": error})
+}
+
 // ShowInFolder says "Show in Folder"
 // in the language the app shows.
 func ShowInFolder() string { return In(i18n.Locale()).ShowInFolder() }

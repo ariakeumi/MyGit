@@ -119,6 +119,7 @@ func (a *app) repoMenu(m *ui.Menu) {
 			a.errMsg = err.Error()
 		}
 	}
+	a.repositoryRenameMenu(m)
 	if a.local() && m.Item(loc.ShowInFolder()).Chosen() {
 		a.showInFolder()
 	}

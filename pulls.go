@@ -225,8 +225,8 @@ func (a *app) showPull(pr *pullReview) {
 }
 
 func (a *app) loadThreads(pr *pullReview) {
-	n := pr.pull.Number
-	work(a, func(ctx context.Context) ([]github.Thread, error) { return pr.client.Threads(ctx, n) }, func(th []github.Thread, err error) {
+	client, n := pr.client, pr.pull.Number
+	work(a, func(ctx context.Context) ([]github.Thread, error) { return client.Threads(ctx, n) }, func(th []github.Thread, err error) {
 		if err != nil {
 			a.errMsg = gitHubError(err)
 			return
@@ -243,8 +243,8 @@ func (a *app) checkPull() {
 		return
 	}
 	pr.checked = time.Now()
-	n := pr.pull.Number
-	work(a, func(ctx context.Context) (github.Pull, error) { return pr.client.Pull(ctx, n) }, func(p github.Pull, err error) {
+	client, n := pr.client, pr.pull.Number
+	work(a, func(ctx context.Context) (github.Pull, error) { return client.Pull(ctx, n) }, func(p github.Pull, err error) {
 		if err == nil && p.Head.SHA != "" && p.Head.SHA != pr.head {
 			pr.stale = true
 		}

@@ -17,6 +17,9 @@ func TestParseRemote(t *testing.T) {
 		"https://github.com/egoist/mygo":        "egoist/mygo",
 		"https://github.com/egoist/mygo.git/":   "egoist/mygo",
 		"ssh://git@github.com/nkzw-tech/codiff": "nkzw-tech/codiff",
+		"ssh://git@ssh.github.com:443/o/r.git":  "o/r",
+		"https://notgithub.com/o/r.git":         "",
+		"https://example.com/github.com/o/r":    "",
 		"https://gitlab.com/a/b.git":            "",
 		"/Users/ada/repos/bare.git":             "",
 	} {
@@ -28,6 +31,24 @@ func TestParseRemote(t *testing.T) {
 		if got != want {
 			t.Errorf("ParseRemote(%q) = %q, want %q", url, got, want)
 		}
+	}
+}
+
+func TestRenameRepositoryRejectsRedirect(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/repos/o/old" {
+			t.Errorf("followed redirect to %s %s", r.Method, r.URL.Path)
+			io.WriteString(w, `{"name":"different"}`)
+			return
+		}
+		http.Redirect(w, r, "/repos/o/different", http.StatusMovedPermanently)
+	}))
+	defer srv.Close()
+	c := &Client{Owner: "o", Repo: "old", Token: "tok", BaseURL: srv.URL}
+	var apiErr *Error
+	if name, err := c.RenameRepository(context.Background(), "new"); name != "" ||
+		!errors.As(err, &apiErr) || apiErr.Status != http.StatusMovedPermanently {
+		t.Fatalf("rename returned %q, %v", name, err)
 	}
 }
 
